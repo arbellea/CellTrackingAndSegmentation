@@ -1,4 +1,4 @@
-function [Tracking] = Initialize_Tracker(data,tagged_data,varargin)
+function [Tracking] = Initialize_Tracker(data,tagged_data,Params,varargin)
 if length(varargin)==1
     handles = varargin{1};
     GUI = true;
@@ -17,6 +17,12 @@ DensCellPoints = [];
 DensEdgePoints = [];
 DensBGPoints = [];
 Tracking.B  =0;
+try
+    Tracking.mtdx = Mitodix(Params.mitosisParams.mitosisDataName);
+catch err
+    getRepport(err)
+    rethrow(err)
+end
 for t = 1:min(4,tagged_data.Frame_Num)
 
     whos Kalmans
@@ -40,6 +46,8 @@ for t = 1:min(4,tagged_data.Frame_Num)
     end
     I = min(max(I,prc(1)),prc(2));
     I = (I-min(I(:)))/(max(I(:))-min(I(:)))*Tracking.maxgray;
+    frame = Frame(t,I,L,data.Frame_name{t});
+    Tracking.mtdx.AddFrame(frame);
     
     LCells = L>0;
     LEdges = logical(imdilate(LCells,ones(3))- LCells);

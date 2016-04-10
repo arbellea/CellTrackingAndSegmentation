@@ -45,6 +45,7 @@ Width = data.Width+20;
 Kalmans = Tracking.Kalmans;
 stopFrame = Tracking.stop_frame;
 try
+   
     
     if LoadCheckPoints&& exist(save_dir_checkp,'dir')
         file_list = dir(fullfile(save_dir_checkp,'*.mat'));
@@ -111,6 +112,103 @@ try
         tSeg = tic;
         fprintf('Start Segmentation of frame %d...\n',t);
         [~,L,L_New_Cells,~,Kalmans,z_pred,cog_diff,Debug] = Fuzzy_Segmentation(Tracking,Kalmans,I,I_prev,segParams,any(save_debug));
+        
+        %% Initial Link
+        L_Merged = L;
+        L_Merged(L_New_Cells>0) = L_New_Cells(L_New_Cells>0)+Tracking.maxCellID;
+        disabeledKalmans = Kalmans(~[Kalmans.enabled]);
+        if ~isempty(disabeledKalmans)
+            tmitLink = tic;
+            
+            tmpMothers = [];
+            for n = 1:length(disabeledKalmans)
+                if ~isempty(disabeledKalmans(n).Children);
+                    for child = 1:length(disabeledKalmans(n).Children)
+                        tmpMothers = cat(1,tmpMothers,[L_Merged(disabeledKalmans(n).Children(child).PixelIdxList(1)),disabeledKalmans(n).ID]);
+                        L(L_Merged(:)==tmpMothers(end,1)) = tmpMothers(end,1);
+                        L_New_Cells(L_Merged(:)==tmpMothers(end,1)) = 0;
+                        disabeledKalmans(n).enabled = true;
+                    end
+                end
+            end
+            timeMitLink = toc(tmitLink);
+            fprintf('Done Mitosis Initial Link of frame %d in %f seconds...\n',t,timeMitLink);
+        end
+        %%
+
+        frame = Frame(t,I,L_Merged,data.Frame_name{t});
+        Tracking.mtdx.AddFrame(frame);
+     
+        candidateList = Tracking.mtdx.GetMitosisInFrame(t);
+        if ~isempty(candidateList)
+            tmitLink = tic;
+            %% Clean Candidate doubles
+            Daughters = sort(cat(1,candidateList(:).Daughters),2);
+            [uDaughters,uIdx] = unique(Daughters,'rows');
+            candidateList = candidateList(uIdx);
+            %%
+            SymmetryScore = [candidateList(:).SymmetryScore];
+            [~,sortScoreIdx] = sort(SymmetryScore,'descend');
+            candidateList = candidateList(sortScoreIdx);
+            new = 1;
+            linkedCells = [];
+            for cc = 1:numel(candidateList)
+                if candidateList(cc).SymmetryScore>0.5&&~any(ismember(candidateList(cc).Daughters,linkedCells))
+                   children = zeros(2,1);
+                   if all(candidateList(cc).Daughters>Tracking.maxCellID)
+                       
+                      for d = 1:2
+                          L(L_Merged(:)==candidateList(cc).Daughters(d)) = 0;
+                          L_New_Cells(L_Merged(:)==candidateList(cc).Daughters(d)) = ...
+                              candidateList(cc).Daughters(d)- Tracking.maxCellID;
+                          children(d) = candidateList(cc).Daughters(d)- Tracking.maxCellID;
+                      end
+                   if tmpMothers(tmpMothers(:,1)==candidateList(cc).Daughters(1),2)==...
+                           tmpMothers(tmpMothers(:,1)==candidateList(cc).Daughters(2),2)
+                   motherID = tmpMothers(tmpMothers(:,1)==candidateList(cc).Daughters(1),2);
+                   else
+                        motherID = candidateList(cc).Mother;
+                        L_New_Cells(L(:)==motherID)= max(L_Merged(:))+new- Tracking.maxCellID;  
+                        new = new+1;
+                        L(L(:)==motherID) = 0;
+                   end
+                   else
+                       for d = 1:2
+                          L(L_Merged(:)==candidateList(cc).Daughters(d)) = 0; 
+                       end
+                       children(1) = candidateList(cc).Daughters(1)- Tracking.maxCellID;
+                       L_New_Cells(L_Merged(:)==candidateList(cc).Daughters(1)) = ...
+                              children(1);
+                       children(2) = max(L_Merged(:))+new- Tracking.maxCellID;  
+                       L_New_Cells(L_Merged(:)==candidateList(cc).Daughters(2)) = ...
+                       children(2);      
+                       new = new+1;
+                       motherID = candidateList(cc).Daughters(2);
+                   end
+
+                   linkedCells = cat(2,linkedCells,candidateList(cc).Daughters);
+                   
+                   
+                   Kalmans([Kalmans(:).ID]==motherID).enabled = false;
+                      
+                   if ~isfield(Link,'Mother');
+                    Link(1).Mother = motherID;
+                    Link(1).Children = children;
+                    Link(1).Time = t;
+                    else
+                    Link(end+1).Mother = motherID;
+                    Link(end).Children = children;
+                    Link(end).Time = t;
+                   end
+
+                end
+            end
+        timeMitLink = toc(tmitLink);
+            fprintf('Done Mitosis Link of frame %d in %f seconds...\n',t,timeMitLink);
+               
+        end
+
+        
         %Debug.Output.L = L; Debug.Output.L_New_Cells = L_New_Cells; Debug.Output.Kalmans = Kalmans; Debug.Output.z_pred = z_pred;Debug.Output.Debug = DebugTmp;
         timeSeg = toc(tSeg);
         fprintf('Done Segmentation of frame %d in %f seconds...\n',t,timeSeg);
@@ -121,7 +219,6 @@ try
         
         
         disabeledKalmans = Kalmans(~[Kalmans.enabled]);
-        
         Kalmans = Kalmans([Kalmans.enabled]);
         tCalc = tic;
         states = Calculate_State(I,L,Kalmans);
@@ -175,6 +272,14 @@ try
                 if mu(1)<=1||mu(2)<=1||mu(1)>(Width)||mu(2)>(Height)
                     continue;
                 end
+                for l = numel(Link):-1:1
+                    
+                    if ~isfield(Link(1),'Mother')||Link(l).Time<t
+                        break;
+                    end
+                    Link(l).Children(Link(l).Children==n) =  Tracking.maxCellID +1;
+                    
+                end
                 m = m+1;
                 Kalmans(m).new = true;
                 Kalmans(m).count =m;
@@ -199,31 +304,7 @@ try
             timeNUp = toc(tnUp);
             fprintf('Done New State Update of frame %d in %f seconds...\n',t,timeNUp);
         end
-        if ~isempty(disabeledKalmans)
-            tmitLink = tic;
-            for n = 1:length(disabeledKalmans)
-                if ~isempty(disabeledKalmans(n).Children);
-                    motherID = disabeledKalmans(n).ID;
-                    children = zeros(length(disabeledKalmans(n).Children),1);
-                    for child = 1:length(disabeledKalmans(n).Children)
-                        c = round(disabeledKalmans(n).Children(child).Centroid);
-                        Kalmans([Kalmans.ID]==L(disabeledKalmans(n).Children(child).PixelIdxList(1))).Mother=disabeledKalmans(n).ID;
-                        children(child) =L(disabeledKalmans(n).Children(child).PixelIdxList(1)) ;
-                    end
-                    if ~isfield(Link,'Mother');
-                    Link(1).Mother = motherID;
-                    Link(1).Children = children;
-                    Link(1).Time = t;
-                    else
-                    Link(end+1).Mother = motherID;
-                    Link(end).Children = children;
-                    Link(end).Time = t;
-                    end
-                end
-            end
-            timeMitLink = toc(tmitLink);
-            fprintf('Done Mitosis Link of frame %d in %f seconds...\n',t,timeMitLink);
-        end
+        
         tKUp = tic;
         for n = 1:length(Kalmans)
             if  Kalmans(n).enabled

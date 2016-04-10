@@ -357,7 +357,7 @@ try
     %FullU = U;
     %FullU{end+1} = UBG;
     
-    Ureturn = cat(3,U{:},UBG);
+    Ureturn = cat(3,U{:},UBG+eps);
     
     FullP = P;
     FullP{end+1}=PBG;
@@ -376,6 +376,7 @@ try
     %NotBG = imerode(NotBG,ones(3));
     NotBGFull = NotBG;
     NotBG_Candidates = [];
+    links = {};
     for l = unique(L(L>0))'
         BW = L==l;
         NotBG_Candidates_l = regionprops(BW,'Solidity','Area','PixelIdxList','Centroid');
@@ -402,7 +403,7 @@ try
         for i = 1:length(NotBG_Candidates_l)
             [idxy,idxx]= ind2sub([Height,Width],NotBG_Candidates_l(i).PixelIdxList);
             [idxyC,idxxC]= ind2sub(s,candidates_cropped(i).PixelIdxList);
-            if any(idxxC==1)||any(idxyC==1)||any(idxxC==s(2))||any(idxyC==S(1))||any(idxx==1)||any(idxy==1)||any(idxx==Width)||any(idxy==Height)
+            if any(idxx==1)||any(idxy==1)||any(idxx==Width)||any(idxy==Height)||any(idxxC==1)||any(idxyC==1)||any(idxxC==s(2))||any(idxyC==s(1))
                 flags(i) = true;
                 NotBG_Candidates = cat(1,NotBG_Candidates,NotBG_Candidates_l(i));
                 NotBGFull(NotBG_Candidates_l(i).PixelIdxList) = 1;
@@ -416,7 +417,10 @@ try
             NotBGFull(L==l) = 1;
             L(L==l) = 0;
             Kalmans([Kalmans(:).ID]==l).enabled = false;
-            Kalmans([Kalmans(:).ID]==l).Children = NotBG_Candidates_l(~flags);
+            NotBG_Candidates_l(~flags) = NotBG_Candidates_l;
+            Kalmans([Kalmans(:).ID]==l).Children = NotBG_Candidates_l;
+            
+           
         end
     end
     NotBG = imerode(NotBG,ones(3));

@@ -6,6 +6,7 @@ if isempty(poolobj)
 poolobj = parpool(myCluster.NumWorkers,'IdleTimeout', 240);
 end
 pctRunOnAll addpath(genpath(fullfile('.','Source Code')));
+pctRunOnAll addpath(genpath(fullfile('.','MitodixGit')));
 warning off;
 %profile on;
 addpath(genpath(pwd));
@@ -40,7 +41,7 @@ end
 Params.start_frame = 1;
 disp('Initialize!!')
 %which Initialize_Tracker
-Tracking = Initialize_Tracker(Data,TaggedData);
+Tracking = Initialize_Tracker(Data,TaggedData,Params);
 Tracking.stop_frame = Params.stop_frame;
 disp('Lets Go!!')
 saveDir = Track_and_Segment(Data,Tracking,Params,TaggedData);
