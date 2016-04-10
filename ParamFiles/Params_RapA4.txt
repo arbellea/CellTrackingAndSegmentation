@@ -1,0 +1,27 @@
+* General
+
+Name = 'RapACropped4';
+
+* Flags
+WriteVideo = true;
+SaveDebug = 0;
+deleteIfErr = 1;
+* load_data_params
+
+data_path = fullfile('.','Input','Rapoport','cetres','cetres.a','image-contrast_1_cropped4');
+extention = '*.tif';
+tagged_data_path = fullfile('.','Input','Rapoport','cetres','cetres.a','ManualSegcropped4');
+tagged_extention = '*.tif';
+xlim = [];
+ylim = [];
+
+
+* parameters
+minCellSize = 50;
+maxItr = 8;
+minErr = 10;
+solidityThr = 0.8;
+patchSize = 70;
+stop_frame = inf;
+cellPrior = 0.5;
+

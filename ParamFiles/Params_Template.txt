@@ -1,0 +1,25 @@
+*General
+Name = ’DATANAME’;
+
+* Flags
+WriteVideo = true; % Write Outputs
+SaveDebug = [0]; % Frames to debug (vector)
+deleteIfErr = true; %Delete Saved output files in case of error
+
+* load_data_params
+data_path = fullfile('.','Input','Rapoport','cetres','cetres.a','image-contrast_1')%Case Sensitive
+extention = '*.png'; %Case Sensitive
+tagged_data_path = fullfile('.','Input','Rapoport','cetres','cetres.a','ManualSeg')%Case Sensitive
+tagged_extention = '*.tif';%Case Sensitive
+xlim = [];
+ylim = [];
+
+* parameters
+minCellSize = 50; 
+maxItr = 8;
+minErr = 10;
+solidityThr = 0.8;
+patchSize = 70;
+stop_frame = inf;
+cellPrior = 0.5;
+

@@ -1,0 +1,24 @@
+* General
+Name = 'JiaYunCoculture';
+
+* Flags
+WriteVideo = true;
+deleteIfErr = true;
+SaveDebug = [0];
+
+* load_data_params
+
+data_path = fullfile('.','Input','Galit_Lahav','Jia-Yun','Coculture','Images','W1CFP');
+extention = '*.TIF';
+tagged_data_path = fullfile('.','Input','Galit_Lahav','Jia-Yun','Coculture','ManualSeg');
+tagged_extention = '*.tif';
+
+
+* parameters
+cellPrior = 0.2;
+minCellSize = 50;
+maxItr = 10;
+minErr = 10;
+solidityThr = 0.8;
+patchSize = 70;
+stop_frame = inf;

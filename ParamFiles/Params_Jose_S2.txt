@@ -1,0 +1,26 @@
+* General
+Name = 'JoseS2';
+
+* Flags
+WriteVideo = true;
+deleteIfErr = true;
+SaveDebug = 0;
+
+
+* load_data_params
+
+data_path = fullfile('.','Input','Galit_Lahav','Jose','RAW_DATA','S2')
+extention = '*.TIF';
+tagged_data_path = fullfile('.','Input','Galit_Lahav','Jose','Manual_Seg','S2');
+tagged_extention = '*.tif';
+xlim = [];
+ylim = [];
+
+* parameters
+cellPrior = 0.5;
+minCellSize = 100;
+maxItr = 10;
+minErr = 10;
+solidityThr = 0.8;
+pathcSize = 100;
+

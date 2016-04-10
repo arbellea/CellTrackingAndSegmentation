@@ -1,0 +1,24 @@
+* General
+Name = 'RapA';
+
+* Flags
+WriteVideo = true;
+SaveDebug = 0;
+deleteIfErr = true;
+
+* load_data_params
+data_path = fullfile('.','Input','Rapoport','cetres','cetres.a','image-contrast_1');
+extention = '*.png';
+tagged_data_path = fullfile('.','Input','Rapoport','cetres','cetres.a','ManualSeg');
+tagged_extention = '*.tif';
+xlim = [];
+ylim = [];
+
+* parameters
+cellPrior = 0.4;
+minCellSize = 40;
+maxItr = 5
+minErr = 10;
+solidityThr = 0.7;
+patchSize = 80;
+stop_frame = inf;
