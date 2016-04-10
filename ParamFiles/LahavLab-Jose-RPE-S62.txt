@@ -1,0 +1,28 @@
+* General
+Name = 'LahavLab-Jose-RPE-S62-21-12'
+
+* Flags
+WriteVideo = true;
+SaveDebug = 0;
+deleteIfErr = true;
+SaveCheckPoints = 10;
+LoadCheckPoints = true;
+ 
+
+
+* load_data_params
+data_path = fullfile('.','Input','Galit_Lahav','Jose','RAW_DATA','S62')
+extention = '*.TIF';
+expr = 'M20150416_w2CFP_s62_t(\d+).TIF'
+tagged_data_path = fullfile('.','Input','Galit_Lahav','Jose','Manual_Seg','S62');
+tagged_extention = '*.tif';
+tagged_expr = 'Manual_Seg_t(\d+).tif'
+
+* parameters
+cellPrior = 0.7;
+minCellSize = 100;
+maxItr = 10;
+minErr = 10;
+solidityThr = 0.8;
+pathcSize = 100;
+stop_frame = inf;

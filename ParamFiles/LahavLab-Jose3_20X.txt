@@ -1,0 +1,32 @@
+* General
+Name = 'LahavLab-Jose3_20X_4'
+emailAddress = 'arbellea@post.bgu.ac.il'
+
+* Flags
+WriteVideo = true;
+SaveDebug = 0;
+deleteIfErr = false;
+SaveCheckPoints = 50;
+LoadCheckPoints = false;
+
+
+* load_data_params
+data_path = fullfile('.','Input','Galit_Lahav','Jose3','M20150416_p21_20X');
+extention = '*.TIF';
+expr = 'M20150416_w2CFP_s101_t(\d+).TIF'
+tagged_data_path = fullfile('.','Input','Galit_Lahav','Jose3' ,'Manual_Seg_M20150416_p21_20X');
+tagged_extention = '*.tif';
+tagged_expr = 'ManualSeg_(\d+).tif'
+
+* parameters
+cellPrior = 0.900;
+minCellSize = 70;
+maxItr = 2;
+minErr = 10;
+solidityThr = 0.5;
+patchSize = 150;
+edgeQ = 2;
+edgeK = 20;
+stop_frame = 25;
+
+

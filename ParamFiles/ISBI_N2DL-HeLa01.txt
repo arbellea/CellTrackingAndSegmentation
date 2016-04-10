@@ -1,0 +1,32 @@
+* General
+Name = 'ISBI-HeLa01'
+emailAddress = 'arbellea@post.bgu.ac.il'
+
+* Flags
+WriteVideo = true;
+SaveDebug = 0;
+deleteIfErr = false;
+SaveCheckPoints = false;
+LoadCheckPoints = 20;
+
+
+
+* load_data_params
+data_path = fullfile('.','Input','ISBI','N2DL-HeLa','01');
+extention = '*.tif';
+expr = 't(\d+).tif';
+
+tagged_data_path = fullfile('.','Input','ISBI','N2DL-HeLa','ManualSeg01');
+tagged_extention = '*.tif';
+tagged_expr = 'ManualSeg_(\d+).tif'
+
+* parameters
+cellPrior = 0.01 	;
+minCellSize = 50;
+maxItr = 2;
+minErr = 10;
+solidityThr = 0.8;
+pathcSize = 150;
+stop_frame = inf;
+
+

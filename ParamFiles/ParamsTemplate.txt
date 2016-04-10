@@ -1,0 +1,29 @@
+* General
+Name = 'AlonLab'
+
+* Flags
+WriteVideo = true;
+SaveDebug = 0;
+deleteIfErr = true;
+SaveCheckPoints = 10;
+LoadCheckPoints = true;
+
+
+* load_data_params
+data_path = fullfile('.','Input','Weizmann','Input','calibrate2');
+extention = '*.TIF';
+expr = 'calibrate2-P01.(\d+).TIF'
+tagged_data_path = fullfile('.','Input','Weizmann','Input','calibrate2_segAuto');
+tagged_extention = '*.tif';
+tagged_expr = 'cell_calibrate2-P01.(\d+).tif'
+
+* parameters
+cellPrior = 0.7;
+minCellSize = 70;
+maxItr = 15;
+minErr = 10;
+solidityThr = 0.8;
+pathcSize = 100;
+stop_frame = inf;
+
+

@@ -1,0 +1,23 @@
+* Flags
+
+WriteVideo = true;
+SaveDebug = 0;
+deleteIfErr = true;
+
+* load_data_params
+data_path = fullfile('.','Input','Galit_Lahav','Jia-Yun','Coculture','Images','W1CFP');
+extention = '*.TIF';
+expr = 'Coculture_w1CFP_s56_t(\d+).TIF'
+tagged_data_path = fullfile('.','Input','Galit_Lahav','Jia-Yun','Coculture','ManualSeg');
+tagged_extention = '*.tif';
+tagged_expr = 'Manual_Seg(\d+).tif'
+
+* parameters
+cellPrior = 0.5;
+minCellSize = 50;
+maxItr = 1;
+minErr = 10;
+solidityThr = 0.8;
+pathcSize = 70;
+
+
