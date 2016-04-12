@@ -1,7 +1,7 @@
 function main(txtFileName)
 % Let see if this works
 myCluster = parcluster('local');
-myCluster.NumWorkers
+myCluster.NumWorkers;
 poolobj = gcp('nocreate');
 if isempty(poolobj)
 poolobj = parpool(myCluster.NumWorkers,'IdleTimeout', 240);
@@ -9,7 +9,8 @@ end
 pctRunOnAll addpath(genpath(fullfile('.','Source Code')));
 pctRunOnAll addpath(genpath(fullfile('.','MitodixGit')));
 warning off;
-
+%profile on;
+%addpath(genpath(pwd));
 SendEMail;
 try
 Params = read_parameters_txt([],txtFileName,false);
