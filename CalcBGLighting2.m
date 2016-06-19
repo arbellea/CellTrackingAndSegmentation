@@ -1,6 +1,6 @@
 function varargout = CalcBGLighting2(I,varargin)
-h = fspecial('gaussian',210,70);
-B = imfilter(I,h,'replicate');
+h = fspecial('gaussian',500,100);
+B = imfilter(I,h,'symmetric');
 ICorrected = I-B;
 
 if length(varargin)>=1;

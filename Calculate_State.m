@@ -17,8 +17,8 @@ if isfield(Kalmans,'U')
     enKalmans = Kalmans(enabled);
     U = arrayfun(@(x) fullSingle(x.U),enKalmans,'UniformOutput',false);
     %Us = arrayfun(@(x) sparseSingle(x.U),enKalmans,'UniformOutput',false);
-    Cell_Size = cellfun(@(u) sum(u(:)),U,'UniformOutput',false);
-    MUXY = cellfun(@(u,cell_size)  u(:)'*[X(:),Y(:)]/cell_size,U,Cell_Size,'UniformOutput',false);
+    Cell_Size = cellfun(@(u) sum(u(:).*I(:)),U,'UniformOutput',false);
+    MUXY = cellfun(@(u,cell_size)  u(:)'*[X(:),Y(:)]/sum(u(:)),U,Cell_Size,'UniformOutput',false);
     MU = cellfun(@(mu)  [mu,I(round(mu(2)),round(mu(1)))],MUXY,'UniformOutput',false);
     SIGMA = cellfun(@(u,mu,cell_size)  sqrt(u(:)'*(I(:)-mu(3)).^2/cell_size),U,MU,Cell_Size,'UniformOutput',false);
     BWs = arrayfun(@(x) sparseSingle(L==x.ID),enKalmans,'UniformOutput',false);

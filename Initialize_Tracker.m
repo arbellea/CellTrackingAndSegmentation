@@ -17,11 +17,13 @@ DensCellPoints = [];
 DensEdgePoints = [];
 DensBGPoints = [];
 Tracking.B  =0;
-try
-    Tracking.mtdx = Mitodix(Params.mitosisParams.mitosisDataName);
-catch err
-    getRepport(err)
-    rethrow(err)
+if isfield(Params,'mitosisParams')&&Params.mitosisParams.enable
+    try
+        Tracking.mtdx = Mitodix(Params.mitosisParams.mitosisDataName);
+    catch err
+        getReport(err)
+        rethrow(err)
+    end
 end
 for t = 1:min(4,tagged_data.Frame_Num)
 
@@ -36,6 +38,7 @@ for t = 1:min(4,tagged_data.Frame_Num)
     %per = prctile(I(:),[0.1,99.9]);
     %I = max(I,per(1));I = min(I,per(2));
     L = double(imread(tagged_data.Frame_name{t}));
+    Tracking.L = L;
     [I,B] =  CalcBGLighting2(I,L==0);
     if t==1
     
@@ -46,8 +49,10 @@ for t = 1:min(4,tagged_data.Frame_Num)
     end
     I = min(max(I,prc(1)),prc(2));
     I = (I-min(I(:)))/(max(I(:))-min(I(:)))*Tracking.maxgray;
+    if Params.mitosisParams.enable
     frame = Frame(t,I,L,data.Frame_name{t});
     Tracking.mtdx.AddFrame(frame);
+    end
     
     LCells = L>0;
     LEdges = logical(imdilate(LCells,ones(3))- LCells);

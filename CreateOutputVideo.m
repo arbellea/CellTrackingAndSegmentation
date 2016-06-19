@@ -51,7 +51,7 @@ try
     for t = 1:inputInfo.Frame_Num
         disp(t);
         I = imread(inputInfo.Frame_name{t});
-        
+        I_Raw = I;
         I = double(I);
         p = prctile(I(:),[0.1,99.9]);
         I = max(I,p(1)); I = min(I,p(2));
@@ -71,7 +71,7 @@ try
         end
         c = false;
         Seg = imread(segfile); %Seg = Seg(11:end-10,11:end-10);
-        reg = regionprops(Seg,'Centroid');
+        reg = regionprops(Seg,I_Raw,'Centroid','Area','MeanIntensity');
         
         cents = [reg(:).Centroid];
         cents(isnan(cents))=[];
@@ -86,7 +86,7 @@ try
         C2d = any(C,3);
         CNew2d = any(CNew,3);
         IR(C2d(:))=mval;IG(C2d(:))=0;IB(C2d(:))=0;IB(CNew2d(:)) = mval;
-        IRGB = cat(3,IR,IG,IB);
+        
         text_loc = [cents(1,:);cents(2,:)-5]';
         cell_num=num2str(id);
         cell_num_cell=cellstr(cell_num);
@@ -98,7 +98,8 @@ try
                 cell_num_cell{iid} = longName{id(iid)};
             end
         end
-        frame = insertText(IRGB,int32(text_loc),cell_num_cell','FontSize',20,'TextColor','red','BoxOpacity',0);
+        frame = insertText(IB,int32(text_loc),cell_num_cell','FontSize',20,'TextColor','white','BoxOpacity',0);
+        frame = cat(3,IR,IG,frame(:,:,3));
         idprev = id;
         visFile = fullfile(saveDir,'Visualize',sprintf('Vis_%s%s',fname,fext));
         imwrite(frame,visFile);

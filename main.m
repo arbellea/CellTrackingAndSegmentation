@@ -1,16 +1,26 @@
 function main(txtFileName)
-% Let see if this works
+dbclear if caught error
 myCluster = parcluster('local');
 myCluster.NumWorkers
 poolobj = gcp('nocreate');
 if isempty(poolobj)
-poolobj = parpool(myCluster.NumWorkers,'IdleTimeout', 240);
+poolobj = parpool(min(1,myCluster.NumWorkers),'IdleTimeout', 240);
 end
-pctRunOnAll addpath(genpath(fullfile('.','Source Code')));
-pctRunOnAll addpath(genpath(fullfile('.','MitodixGit')));
+if ~isunix
+dbstop if caught error
+end
+addpath(genpath(fullfile('.','SourceCode')));
+if isunix
+    addpath(genpath(fullfile('.','MitodixGit')));
+else
+    
+    addpath(genpath(fullfile('..','Mitodix')));
+end
 warning off;
 
 SendEMail;
+emailAddress = [];
+
 try
 Params = read_parameters_txt([],txtFileName,false);
 if isfield(Params.General,'emailAddress')
@@ -67,7 +77,7 @@ if Params.Flags.WriteVideo
 end
 
 catch err
-errmsg = err.message;
+errmsg = getReport(err);
 if ~isempty(emailAddress)
 msg = sprintf('Error analyzing  %s!!!\n %s',txtFileName,errmsg);
 sendmail(emailAddress,'BGU Cluster Report #0', msg);
