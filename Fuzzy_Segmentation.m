@@ -674,8 +674,8 @@ if any(isnan(SE(:)))||any(isnan(mu))||any(mu<1)||mu(1)>size(SE,1)||mu(2)>size(SE
     return
     %fprintf('Fast Marching will crash!')
 end
-%Dg = max(graydist(1./SE,mu(2),mu(1),'quasi-euclidean'),eps);
-%De = max(graydist(ones(size(SE)),mu(2),mu(1),'quasi-euclidean'),eps);
+Dg = max(graydist(1./SE,mu(2),mu(1),'quasi-euclidean'),eps);
+De = max(graydist(ones(size(SE)),mu(2),mu(1),'quasi-euclidean'),eps);
 %Dg = max(msfm2d(SE,mu,true,true),eps);
 DiffD = max(Dg-De,0);
 end
