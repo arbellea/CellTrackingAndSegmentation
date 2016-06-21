@@ -20,6 +20,7 @@ if isfield(Kalmans,'U')
     %Cell_Size = cellfun(@(u) sum(u(:).*I(:)),U,'UniformOutput',false);
     %MUXY = cellfun(@(u,cell_size)  u(:)'*[X(:),Y(:)]/sum(u(:)),U,Cell_Size,'UniformOutput',false);
     Cell_Size = cellfun(@(u) sum(u(:)),U,'UniformOutput',false);
+    weightedSize =  cellfun(@(u,i) (i(:)'*u(:)),U,I,'UniformOutput',false);
     MUXY = cellfun(@(u,cell_size)  u(:)'*[X(:),Y(:)]/cell_size,U,Cell_Size,'UniformOutput',false);
     
     MU = cellfun(@(mu)  [mu,I(round(mu(2)),round(mu(1)))],MUXY,'UniformOutput',false);
@@ -35,6 +36,7 @@ if isfield(Kalmans,'U')
     [states(:).BW] = deal(BWs{:});
     [states(:).Contour] = deal(CONTOURs{:});
     [states(:).size] = deal(Cell_Size{:});
+    [states(:).weightedSize] = deal(weightedSize{:});
     
 else
    uniqueL = unique(L(L>0));
@@ -64,10 +66,14 @@ for i = 1:length(uniqueL);
     gl_sigma = std(g);
     BW = (L==l);
     cell_size = sum(BW(:));
+    weightedSize =  I(:)'*BW(:)
+    
     states(i).size = cell_size;
     states(i).BW = sparseSingle(BW);
     states(i).Contour = sparseSingle(BW-imerode(BW,ones(3)));
     states(i).kalman_state = [mu,gl_sigma,cell_size,0,0,0,0,0];
+    states(i).weightedSize = weightedSize;
+    
 end
 end
 

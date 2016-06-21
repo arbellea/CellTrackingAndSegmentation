@@ -112,6 +112,7 @@ try
     enKalmans = enKalmans(new_enabled);
     [enKalmans.z_pred] = deal(z_pred{:});
     cell_size = arrayfun(@(x) x.size,enKalmans,'UniformOutput',false);
+    cellSize = arrayfun(@(x) x.weightedSize,enKalmans,'UniformOutput',false);
     BWs = arrayfun(@(x) x.BW,enKalmans,'UniformOutput',false);
     HDs = arrayfun(@(x) max(x.HD,0.01),enKalmans,'UniformOutput',false);
     last_mu = arrayfun(@(x) (flipud(x.prev_state(1:2))),enKalmans,'UniformOutput',false);
@@ -275,7 +276,9 @@ try
             end
             P_cropped = cellfun(@(phi,d) 1./(d+1),Phi_cropped,D_cropped,'uniformoutput',0);
             P_cropped_tot = cellfun(@(phi,d,p) (p+1./(d+1))*0.5,Phi_cropped_stat,D_cropped_stat,P_cropped,'uniformoutput',0);
-            P = cellfun(@(Im,m) PadImage(Im,m,patchSize,patchSize,Height,Width,0),P_cropped_tot,mu,'uniformoutput',0);
+            %P = cellfun(@(Im,m) PadImage(Im,m,patchSize,patchSize,Height,Width,0),P_cropped_tot,mu,'uniformoutput',0);
+            P_Weighted = cellfun(@(p, nbg, i, cellsize) RegularizeIntensity(p,nbg,i,cellsize,1.5),P_cropped_tot,nBG_cropped,I_cropped,cellSize,'uniforOutput',false);
+            P = cellfun(@(Im,m) PadImage(Im,m,patchSize,patchSize,Height,Width,0),P_Weighted,mu,'uniformoutput',0);
             
         else
             %Phi_norm = cellfun(@(phi) phi./Sphi,Phi_moved,'uniformoutput',0);
@@ -319,7 +322,10 @@ try
             P_cropped_stat = cellfun(@(phi,d) phi./(d+1),Phi_cropped_stat,D_cropped_stat,'uniformoutput',0);
             P_cropped_tot = cellfun(@createPTot ,P_cropped,P_cropped_stat,U_cropped,mu_cropped,mu_cropped_stat,'uniformoutput',false);
             %P_cropped_tot = cellfun(@(phi,d,p,u,m,ms) (p.*u(m(1),m(2))+u(ms(1),ms(2))./(d+1))./(u(m(1),m(2))+u(ms(1),ms(2))),Phi_cropped_stat,D_cropped_stat,P_cropped,U_cropped,mu_cropped,mu_cropped_stat,'uniformoutput',0);
-            P = cellfun(@(Im,m) PadImage(Im,m,patchSize,patchSize,Height,Width,0),P_cropped_tot,mu,'uniformoutput',0);
+            %P = cellfun(@(Im,m) PadImage(Im,m,patchSize,patchSize,Height,Width,0),P_cropped_tot,mu,'uniformoutput',0);
+            P_Weighted = cellfun(@(p, nbg, i, cellsize) RegularizeIntensity(p,nbg,i,cellsize,1.5),P_cropped_tot,nBG_cropped,I_cropped,cellSize,'uniforOutput',false);
+            P = cellfun(@(Im,m) PadImage(Im,m,patchSize,patchSize,Height,Width,0),P_Weighted,mu,'uniformoutput',0);
+            
         end
         
         Pmat = cat(3,P{:});
@@ -353,11 +359,12 @@ try
         %p = prctile(S(:),0.1);
         %S = S + p;
         UBG = max(pBG,eps)./S;
-        
-        [U,U_cropped] = cellfun(@(p,m) NormalizeAndCropU(p,S,m,patchSize),P,mu,'uniformoutput',0);
+        %{
         U_cropped = cellfun(@(u,nbg) u.*nbg,U_cropped,nBG_cropped,'uniformoutput',false);
         U = cellfun(@(u) u.*nBG,U,'uniformoutput',false);
+        %}
         %% This part is new June 19th 
+        [U,U_cropped] = cellfun(@(p,m) NormalizeAndCropU(p,S.*nBG,m,patchSize),P,mu,'uniformoutput',0);
         
         %U_cropped = cellfun(@corU, U_cropped,Phi_cropped,'uniformoutput',false);
         %U  = cellfun(@(Im,m) PadImage(Im,m,patchSize,patchSize,Height,Width,0),U_cropped,mu,'uniformoutput',0);
@@ -377,7 +384,8 @@ try
             DEBUG = [];
         end
         mu_prev = mu;
-        mu = cellfun(@(u,phi,phis) XY*(u(:).*(phi(:)+phis(:)))./max(sum(u(:).*(phis(:)+phi(:))),eps),U,Phi_moved,Phi_stat,'UniformOutput',false);
+        %mu = cellfun(@(u,phi,phis) XY*(u(:).*(phi(:)+phis(:)))./max(sum(u(:).*(phis(:)+phi(:))),eps),U,Phi_moved,Phi_stat,'UniformOutput',false);
+        mu = cellfun(@(u,s) XY*(u(:).*s(:)./max(sum(u(:).*(s(:))),eps)),U,ss4,'UniformOutput',false);
         prev_size = cell_size;
         cell_size = cellfun(@(u) round(I(:)'*u(:)),U,'uniformoutput',false);
         [err,err_idx] = max(sqrt(sum((cell2mat(cell_size)-cell2mat(prev_size)).^2,1)));
@@ -415,6 +423,7 @@ try
             cell_size = cell_size(remove_cell);
             prev_size = prev_size(remove_cell);
             g = g(remove_cell);
+            cellSize = cellSize(remove_cell);
         end
         
     end
@@ -764,4 +773,14 @@ cor = filter2(phi./sum(phi(:)),u);
 peak = zeros(size(cor));
 peak(peaky,peakx)=1;
 uout = filter2(flipud(fliplr(phi)),peak);
+end
+
+function [PWeighted,PixelWeights] = RegularizeIntensity(P_cropped,nBG_cropped,I_cropped,cellSize,alpha)
+
+[~,sid] = sort(P_cropped(:),'descend');
+sortedSum = zeros(size(P_cropped));
+sortedSum(sid) = cumsum(I_cropped(sid).*nBG_cropped(sid));
+sortedSum = reshape(sortedSum,size(P_cropped));
+PixelWeights = max(0,min(1,(sortedSum./((1-alpha).*cellSize)-(alpha./(1-alpha)))));
+PWeighted = PixelWeights.*P_cropped;
 end
