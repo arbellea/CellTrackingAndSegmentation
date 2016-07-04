@@ -1,10 +1,11 @@
-function [manualTrack,L]=CheckJose(txtfilePath,data_path,extention,expr,resPath,resExt,resExp,Name)
+function [varargout]=CheckJose(txtfilePath,data_path,extention,expr,resPath,resExt,resExp,Name)
 if ~exist('Name','var')||isempty(Name)||~ischar(Name)
     Name = '';
 end
 %%
 manualTrack = readtable(txtfilePath,'Delimiter','\t','Format','%f%f%f%f%f%f%f');
 manualTrackOrig = manualTrack;
+varargout{1} = manualTrackOrig;
 %%
 load(fullfile(resPath,'..','Link.mat'));
 %%
@@ -12,17 +13,22 @@ Data = Load_Data(data_path,extention,expr) ;
 ResData = Load_Data(resPath,resExt,resExp) ;
 %%
 manualTrack = readtable(txtfilePath,'Delimiter','\t','Format','%f%f%f%f%f%f%f');
+b = 10;
+H = ResData.Height;
+W = ResData.Width;
+%%manualTrack = readtable(txtfilePath,'Delimiter','\t','Format','%f%f%f%f%f%f%f');
 manualTrackOrig = manualTrack;
 existingCells = manualTrack.cell_id(manualTrack.timepoint==1);
 existingSisters = [];
-LinkMan = [];
+LinkMat = [];
 start = [];
 stop = [];
-b = 10;
 maxID = max(manualTrack.cell_id);
+LinkStruct = struct([]);
+%%
 for t = 2:max(manualTrack.timepoint)
     manualTrack= manualTrack(manualTrack.cell_id>0,:);
-    centroids = manualTrack(manualTrack.timepoint==t,2:3);
+    centroids = table2array(manualTrack(manualTrack.timepoint==t,2:3));
     currentCells =  manualTrack.cell_id(manualTrack.timepoint==t);
     futureCells =  manualTrack.cell_id(manualTrack.timepoint>t);
     [~,ia,ic] = unique(centroids,'rows');
@@ -62,14 +68,36 @@ for t = 2:max(manualTrack.timepoint)
         maxID = maxID +1;
         futureCells(futureCells==motherCell) = maxID;
         currentCells(currentCells==motherCell) = maxID;
-        LinkMan = cat(1,LinkMan,[t,motherCell,maxID,daughterCell]);
+        motherCentroid = table2array(manualTrack(manualTrack.timepoint==(t-1)&manualTrack.cell_id==motherCell,2:3));
+        daughter1Centroid = centroids(currentCells==maxID,:);
+        
+        if isempty(daughter1Centroid)
+           maxID = maxID-1;
+           stop = cat(1,stop,motherCell);
+           continue
+        end
+        LinkStruct(end+1).t = t;
+        LinkStruct(end).Mother.ID = motherCell;
+        LinkStruct(end).Mother.Centroid = motherCentroid;
+        LinkStruct(end).Daughter(1).ID = maxID;
+        LinkStruct(end).Daughter(1).Centroid = daughter1Centroid;
+        
+        if daughterCell<0
+            daughter2Centroid = [-1,-1];
+        else
+            daughter2Centroid = centroids(currentCells==daughterCell,:);
+             LinkStruct(end).Daughter(2).ID = daughterCell;
+             LinkStruct(end).Daughter(2).Centroid = daughter1Centroid;
+        end
+        
+        LinkMat = cat(1,LinkMat,[t,motherCell,motherCentroid,maxID,daughter1Centroid,daughterCell,daughter2Centroid]); % 
         start = cat(1,start,maxID,daughterCell(daughterCell>0));
         stop = cat(1,stop,motherCell);
     end
     
     for edgeIds =  manualTrack.cell_id(manualTrack.timepoint==t&...
-            (manualTrack.centroid_col<b|manualTrack.centroid_row<b|manualTrack.centroid_col>(-b+ResData.Height)...
-            |manualTrack.centroid_row>(-b+ResData.Width))&manualTrack.cell_id>0)'
+            (manualTrack.centroid_col<b|manualTrack.centroid_row<b|manualTrack.centroid_col>(-b+H)...
+            |manualTrack.centroid_row>(-b+W))&manualTrack.cell_id>0)'
             futureCells(futureCells==edgeIds) = 0;
            
     end
@@ -90,7 +118,8 @@ end
 %%
 manualTrack = manualTrack(manualTrack.cell_id>0,:);
 %%
-
+varargout{1} = manualTrack;
+varargout{2} = manualTrackOrig;
 %%
 Match = nan(max(manualTrack.cell_id),min(max(manualTrack.timepoint),ResData.Frame_Num));
 GTgl = nan(max(manualTrack.cell_id),min(max(manualTrack.timepoint),Data.Frame_Num));
@@ -137,6 +166,7 @@ for t = 1:Data.Frame_Num
     %%
 end
 MatchOrig = Match;
+
 %%
 for l = numel(Link):-1:1
     for m = 1:numel(Link(l).Children)
@@ -144,9 +174,15 @@ for l = numel(Link):-1:1
     end
 end
 %%
+varargout{3} = Match; 
+varargout{4} = MatchOrig;
+
+%%
 med_filt = vision.MedianFilter([1,7]);
 MatchMed = step(med_filt,Match);
 MatchMed(:,end-2:end) = Match(:,end-2:end);
+%%
+varargout{5} = MatchMed;
 %%
 uMatch = cell(size(Match,1),1);
 for t =1:size(Match,2)
@@ -159,14 +195,19 @@ end
 acc(t) = sum(L(:,t)==1&(sum(~isnan(Match),2)>=10))./sum(L(:,t)>0&(sum(~isnan(Match),2)>=10));
 if t>1
     diffM = diff(MatchMed(:,1:t),1,2);
-acc2(t) = 1-sum(sum(diffM~=0&~isnan(diffM)))./sum(sum(~isnan(MatchMed(:,1:t-1))));
+    acc2(t) = 1-sum(sum(diffM~=0&~isnan(diffM)))./sum(sum(~isnan(MatchMed(:,1:t-1))));
 else
     acc2(t) = 1;
 end
 end
-
-
-
+varargout{6} = diffM;
+varargout{7} = L;
+varargout{8} = GTgl;
+varargout{9} = GTvar;
+varargout{10} = AutoGL;
+varargout{11} = AutoVar;
+varargout{12} = AutoGL2;
+varargout{12} = AutoVar2;
 %%
 
 figure; plot(acc);
@@ -196,6 +237,61 @@ cellNum = sum(~isnan(diffM),1);
 figure; bar(cellNum); hold on; bar(errPerFrame,'r'); hold off;
 legend('Manual Track','Error')
 xlabel('frame #'); ylabel('freq'); title(sprintf('%s:Pairwise Manual Tracks & Errors: %d erros out of %d',Name,sum(errPerFrame),sum(cellNum)))
+
+
+%%
+%{
+thr = 300;
+for i = find(pathlength>thr)
+    if ~all(isnan(GTgl(i,:)))
+    figure;
+    plot(GTgl(i,:)); hold on;
+    plot(AutoGL(i,:));
+    hold off;
+    xlabel('frame #'); ylabel('gl'); title(sprintf('%s:Gray level of cell ID #%d\n Track Length:%d',Name,i,pathlength(i)))
+    legend('Centroid GL','Mean GL');
+    
+    figure;
+    subplot(2,1,1);
+    plot(AutoGL(i,:));
+    xlabel('frame #'); ylabel('mean gl'); title(sprintf('%s: Auto Algo - Gray level & Variance of cell ID #%d\n Track Length:%d',Name,i,pathlength(i)))
+    subplot(2,1,2);    
+    plot(AutoVar(i,:));
+    xlabel('frame #'); ylabel('var gl'); 
+    end
+end
+%}
+%%
+totalLinks = 0;
+correctLinks = nan(2,numel(LinkStruct));
+
+sisLinks = 0;
+for i = 1:numel(LinkStruct)
+     if LinkStruct(i).t>size(MatchMed,2)
+        break;
+    end
+    %%
+    
+    time = LinkStruct(i).t;
+   
+    correctLinks(:,i)=-1;
+    mother = LinkStruct(i).Mother.ID;
+    timeVec = max(1,time-5):time-1;
+    motherAuto = median(MatchMed(mother,timeVec));
+    timeVec = time:min(size(MatchMed,2),time+4);
+    daughterAuto = median(MatchMed([LinkStruct(i).Daughter.ID],timeVec),2);
+    for d = 1:numel(daughterAuto)
+      totalLinks = totalLinks+1;
+      if daughterAuto(d)==motherAuto
+          correctLinks(d,i) =1;
+      else
+           correctLinks(d,i) =0;
+      end
+    end
+    if d==2&daughterAuto(1)==daughterAuto(2)
+        sisLinks = sisLinks+1;
+    end
+end
 %%
 return
 %%
@@ -206,38 +302,62 @@ visData = Load_Data(visPath,resExt,visExp);
 [cc,tt] = find(diffM~=0&~isnan(diffM))
 ind = 0
 %%
- ind = ind+1; 
- Match(cc(ind),tt(ind)-2:tt(ind)+2)
- manualTrack(manualTrack.timepoint==tt(ind)&manualTrack.cell_id==cc(ind),:)
- I1 = imread(visData.Frame_name{tt(ind)-1}); I2 = imread(visData.Frame_name{tt(ind)});
- I3 = imread(visData.Frame_name{tt(ind)+1});
- figure(1); imshow(I1); a(1) = gca;
- figure(2); imshow(I2); a(2) = gca; hold on;scatter(manualTrack.centroid_row(manualTrack.timepoint==tt(ind)&manualTrack.cell_id==cc(ind)),manualTrack.centroid_col(manualTrack.timepoint==tt(ind)&manualTrack.cell_id==cc(ind)),'*g'); hold off;
- figure(3); imshow(I3); a(3) = gca;
+ ind = ind+1;
+ cellid = cc(ind);
+ tp = tt(ind);
+
+
+ MatchMed(cellid,tp-2:tp+2)
+ mt = manualTrack(manualTrack.timepoint==tp&manualTrack.cell_id==cellid,1:4)
+ I1 = imread(Data.Frame_name{tp-2}); I2 = imread(Data.Frame_name{tp-1});
+ I3 = imread(Data.Frame_name{tp});
+ I4 = imread(Data.Frame_name{tp+1}); I5 = imread(Data.Frame_name{tp+2});
+ 
+ 
+ p = prctile(double(I1(:)),[1,99]);
+ 
+ figure(100);
+ 
+ %imshow(I1,p); a(1) = gca; title(sprintf('Frame #%d',tp-2))
+ %figure(101); 
+ subplot(1,12,[1:4]);
+ imshow(I2,p); a(1) = gca; title(sprintf('Frame #%d',tp-1));hold on;scatter(manualTrack.centroid_row(manualTrack.timepoint==tp-1&manualTrack.cell_id==cellid),manualTrack.centroid_col(manualTrack.timepoint==tp-1&manualTrack.cell_id==cellid),'*g','linewidth',2); hold off;
+ %figure(103);
+ subplot(1,12,[9:12]);
+ imshow(I4,p); a(2) = gca; title(sprintf('Frame #%d',tp+1));hold on;scatter(manualTrack.centroid_row(manualTrack.timepoint==tp+1&manualTrack.cell_id==cellid),manualTrack.centroid_col(manualTrack.timepoint==tp+1&manualTrack.cell_id==cellid),'*g','linewidth',2); hold off;
+ %figure(104); 
+ %imshow(I5,p); a(5) = gca; title(sprintf('Frame #%d',tp+2))
+ %figure(102);
+ subplot(1,12,[5:8]);
+ imshow(I3,p); a(3) = gca;hold on;scatter(manualTrack.centroid_row(manualTrack.timepoint==tp&manualTrack.cell_id==cellid),manualTrack.centroid_col(manualTrack.timepoint==tp&manualTrack.cell_id==cellid),'*g','linewidth',2); hold off;
+ title(sprintf('Frame #%d',tp))
+ 
+ I1 = imread(visData.Frame_name{tp-2}); I2 = imread(visData.Frame_name{tp-1});
+ I3 = imread(visData.Frame_name{tp});
+ I4 = imread(visData.Frame_name{tp+1}); I5 = imread(visData.Frame_name{tp+2});
+ 
+ 
+ p = [];%prctile(double(I1(:)),[1,99]);
+ 
+ figure(101);
+ 
+ %imshow(I1,p); a(1) = gca; title(sprintf('Frame #%d',tp-2))
+ %figure(101); 
+ subplot(1,12,[1:4]);
+ imshow(I2,p); a(4) = gca; title(sprintf('Frame #%d',tp-1)) ; title(sprintf('Frame #%d',tp-1));hold on;scatter(manualTrack.centroid_row(manualTrack.timepoint==tp-1&manualTrack.cell_id==cellid),manualTrack.centroid_col(manualTrack.timepoint==tp-1&manualTrack.cell_id==cellid),'*g','linewidth',2); hold off;
+ %figure(103);
+ subplot(1,12,[9:12]);
+ imshow(I4,p); a(5) = gca; title(sprintf('Frame #%d',tp+1)); title(sprintf('Frame #%d',tp+1));hold on;scatter(manualTrack.centroid_row(manualTrack.timepoint==tp+1&manualTrack.cell_id==cellid),manualTrack.centroid_col(manualTrack.timepoint==tp+1&manualTrack.cell_id==cellid),'*g','linewidth',2); hold off;
+ %figure(104); 
+ %imshow(I5,p); a(5) = gca; title(sprintf('Frame #%d',tp+2))
+ %figure(102);
+ subplot(1,12,[5:8]);
+ imshow(I3,p); a(6) = gca;hold on;scatter(manualTrack.centroid_row(manualTrack.timepoint==tp&manualTrack.cell_id==cellid),manualTrack.centroid_col(manualTrack.timepoint==tp&manualTrack.cell_id==cellid),'*g','linewidth',2); hold off;
+ title(sprintf('Frame #%d',tp))
  linkaxes(a);
+
  
 %%
-
-%%
-thr = 340;
-for i = find(pathlength>thr)
-    if ~all(isnan(GTgl(i,:)))
-    figure;
-    plot(GTgl(i,:)); hold on;
-    plot(AutoGL(i,:));
-    hold off;
-    xlabel('frame #'); ylabel('gl'); title(sprintf('%s:Gray level of cell ID #%d\n Track Length:%d',Name,i,pathlength(i)))
-    figure;
-
-    subplot(2,1,1);
-    plot(AutoGL(i,:));
-    xlabel('frame #'); ylabel('mean gl'); title(sprintf('%s: Auto Algo - Gray level & Variance of cell ID #%d\n Track Length:%d',Name,i,pathlength(i)))
-    subplot(2,1,2);    
-    plot(AutoVar(i,:));
-    
-    xlabel('frame #'); ylabel('var gl'); 
-    end
-end
 
 %%
 
