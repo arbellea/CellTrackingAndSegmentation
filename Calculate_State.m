@@ -20,7 +20,7 @@ if isfield(Kalmans,'U')
     %Cell_Size = cellfun(@(u) sum(u(:).*I(:)),U,'UniformOutput',false);
     %MUXY = cellfun(@(u,cell_size)  u(:)'*[X(:),Y(:)]/sum(u(:)),U,Cell_Size,'UniformOutput',false);
     Cell_Size = cellfun(@(u) sum(u(:)),U,'UniformOutput',false);
-    weightedSize =  cellfun(@(u,i) (i(:)'*u(:)),U,I,'UniformOutput',false);
+    weightedSize =  cellfun(@(u,i) (I(:)'*u(:)),U,'UniformOutput',false);
     MUXY = cellfun(@(u,cell_size)  u(:)'*[X(:),Y(:)]/cell_size,U,Cell_Size,'UniformOutput',false);
     
     MU = cellfun(@(mu)  [mu,I(round(mu(2)),round(mu(1)))],MUXY,'UniformOutput',false);
@@ -66,7 +66,7 @@ for i = 1:length(uniqueL);
     gl_sigma = std(g);
     BW = (L==l);
     cell_size = sum(BW(:));
-    weightedSize =  I(:)'*BW(:)
+    weightedSize =  I(:)'*BW(:);
     
     states(i).size = cell_size;
     states(i).BW = sparseSingle(BW);
@@ -80,12 +80,26 @@ end
 end
 
 function hd = Calc_HD(Contour,prev_Contour,mu,prev_state)
-
+        prevContour = fullSingle(prev_Contour);
         [p1y,p1x] = find(fullSingle(prev_Contour)); [p2y,p2x]=find(fullSingle(Contour));
-        p2x = p2x - mu(1)+prev_state(1) ;
-        p2y = p2y - mu(2)+prev_state(2) ;
+        p2x = round(p2x - mu(1)+prev_state(1)) ;
+        p2y = round(p2y -mu(2)+prev_state(2)) ;
+        valid = (p2x>0&p2x<size(prevContour,2))&p2y>0&p2y<size(prevContour,1);
+        p2x = p2x(valid);
+        p2y = p2y(valid);
         p1 = [p1y,p1x];p2=[p2y,p2x];
-        hd = HausdorffDist(p1,p2);
+        
+        boxy = min([p1y;p2y]):max([p1y;p2y]);
+       
+        boxx = min([p1x;p2x]):max([p1x;p2x]);
+        
+        prevContour = prevContour(boxy,boxx);
+        dist = bwdist(prevContour);
+        ind = sub2ind(size(prevContour),(p2y-boxy(1)+1),(p2x-boxx(1)+1));
+        
+        hd = mean(dist(ind));
+        
+        %hd = HausdorffDist(p1,p2);
         if hd==0 
             hd = eps;
         end

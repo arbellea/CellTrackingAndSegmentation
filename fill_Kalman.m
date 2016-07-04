@@ -4,6 +4,7 @@ function Kalman = fill_Kalman(state,Kalman)
             Kalman.BW = state.BW;
             Kalman.Contour = state.Contour;
             Kalman.size = state.size;
+            Kalman.weightedSize = state.weightedSize;
             
 
 end

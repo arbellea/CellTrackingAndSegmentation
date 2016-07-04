@@ -1,4 +1,4 @@
-function [Ureturn,L,L_New_Cell,z,Kalmans,z_pred,z_pred_orig,cog_diff,DEBUG] = Fuzzy_Segmentation(Tracking,Kalmans,I,I_prev,params,save_debug) %#ok<INUSD>
+function [L,L_New_Cell,Kalmans,z_pred,z_pred_orig,cog_diff,DEBUG] = Fuzzy_Segmentation(Tracking,Kalmans,I,I_prev,params,save_debug) %#ok<INUSD>
 [Height,Width]=size(I);
 [X,Y] = meshgrid(1:Width,1:Height);
 
@@ -114,7 +114,7 @@ try
     cell_size = arrayfun(@(x) x.size,enKalmans,'UniformOutput',false);
     cellSize = arrayfun(@(x) x.weightedSize,enKalmans,'UniformOutput',false);
     BWs = arrayfun(@(x) x.BW,enKalmans,'UniformOutput',false);
-    HDs = arrayfun(@(x) max(x.HD,0.01),enKalmans,'UniformOutput',false);
+    HDs = arrayfun(@(x) max(x.HD*5,0.01),enKalmans,'UniformOutput',false);
     last_mu = arrayfun(@(x) (flipud(x.prev_state(1:2))),enKalmans,'UniformOutput',false);
     hg = fspecial('gauss');
     
@@ -122,7 +122,7 @@ try
     gradI = calc_Grad_I(I);
     invG = max(1./(1+(gradI./(k*std(gradI(:)))).^q),0.01);
     sigG = P_pred{1}(3,3);
-    %Pi = cellfun(@(gg)  reshape(sqrt(2*pi)*sigG*1e3*normpdf(I(:),gg,sigG*1e3),size(I)), g,'uniformoutput',false);
+    Pi = cellfun(@(gg)  reshape(sqrt(2*pi)*sigG*1e3*normpdf(I(:),gg,sigG*1e3),size(I)), g,'uniformoutput',false);
     %SP = sum(cat(3,Pi{:}),3);        
     %Pi = cellfun(@(pi) pi./SP , Pi,'uniformoutput',false);
     %%
@@ -167,10 +167,12 @@ try
         end
         if itr==1
             %Gauss = cellfun(@(m,p) reshape(mvnpdf([Y(:),X(:)],m',rot90(p(1:2,1:2)*10,2)),size(X)),est_mu,P_pred,'uniformoutput',false);
-            %sumGauss = sum(cat(3,Gauss{:}),3)+eps;
+            
+            Gauss = cellfun(@(m,p) reshape((p(1,1)*10).^2./sum([Y(:)-m(1),X(:)-m(2)].^2,2),size(X)),est_mu,P_pred,'uniformoutput',false);
+            sumGauss =sum(cat(3,Gauss{:}),3)+eps;
            
             %mu = cellfun(@(m,p) FindMostLiklymuGray(nBG,invG,m,p),mu,P_pred,'uniformoutput',0);
-            %mu = cellfun(@(g,pi) FindMostLiklymuGray2(nBG,invG,g.^1.5,sumGauss,pi),Gauss,Pi,'uniformoutput',0);
+            mu = cellfun(@(g) FindMostLiklymuGray2(nBG,invG,g.^2,sumGauss,ones(size(g))),Gauss,'uniformoutput',0);
         end
         [Phi_moved,BWs_moved,BW_cropped,SDF_moved_cropped,Phi_moved_cropped,valid] = cellfun(@(bw,em,mm,l,sigma,hd) movePhi(fullSingle(bw),em,mm,l,hd,sigma,patchSize),BWs,est_mu,mu,last_mu,P_pred,HDs,'uniformoutput',0);
         [Phi_stat,BWs_stat,BW_cropped_stat,SDF_stat_cropped,Phi_stat_cropped,valid_stat] = cellfun(@(bw,em,mm,l,sigma,hd) movePhi(fullSingle(bw),em,mm,l,hd,sigma,patchSize),BWs,last_mu,last_mu,last_mu,P_pred,HDs,'uniformoutput',0);
@@ -202,6 +204,7 @@ try
             P_pred = P_pred(valid);
             %Pi = Pi(valid);
             g = g(valid);
+            cellSize = cellSize(valid);
             enabled(enabled) = logical(valid);
             if exist('U','var')
                 U = U(valid);
@@ -211,7 +214,7 @@ try
             
         end
         
-        Phimat = cat(3,Phi_moved{:});
+        Phimat = reshape(full(cell2mat(Phi_moved)),Height,Width,[]);
         Sphi = sum(Phimat,3) + (1-max(Phimat,[],3));
         Sphi(Sphi(:)==0)=1;
         if save_debug
@@ -228,7 +231,7 @@ try
             %Phi_norm = cellfun(@(phi) phi./Sphi,Phi_moved,'uniformoutput',0);
             %Phi_cropped = cellfun(@(Im,m) CropImage(Im,m,patchSize,patchSize),Phi_norm,mu,'uniformoutput',0);
             
-            Phi_cropped = cellfun(@(Im,m) CropImage(Im,m,patchSize,patchSize),Phi_moved,mu,'uniformoutput',0);
+            [Phi_cropped, cropInd] = cellfun(@(Im,m) CropImage(Im,m,patchSize,patchSize),Phi_moved,mu,'uniformoutput',0);
             Phi_cropped_stat = cellfun(@(Im,m) CropImage(Im,m,patchSize,patchSize),Phi_stat,mu,'uniformoutput',0);
             if save_debug
                 DEBUG{itr}.Phi_cropped = Phi_cropped;
@@ -238,7 +241,7 @@ try
             %Pi_cropped = cellfun(@(m,p) CropImage(p,m,patchSize,patchSize),mu,Pi,'uniformoutput',0);
     
             I_cropped = cellfun(@(m) CropImage(I,m,patchSize,patchSize),mu,'uniformoutput',0);
-            Pi_cropped = cellfun(@(gg,i)  reshape(sqrt(2*pi)*sigG*1e3*normpdf(i(:),gg,sigG*1e3),size(i)), g,I_cropped,'uniformoutput',false);
+            Pi_cropped = cellfun(@(gg,i)  reshape(sqrt(2*pi)*sigG*1e2*normpdf(i(:),gg,sigG*1e2),size(i)), g,I_cropped,'uniformoutput',false);
     
             %nEdge_cropped = cellfun(@(m) CropImage(nEdge,m,patchSize,patchSize),mu,'uniformoutput',0);
             if save_debug
@@ -277,62 +280,13 @@ try
             P_cropped = cellfun(@(phi,d) 1./(d+1),Phi_cropped,D_cropped,'uniformoutput',0);
             P_cropped_tot = cellfun(@(phi,d,p) (p+1./(d+1))*0.5,Phi_cropped_stat,D_cropped_stat,P_cropped,'uniformoutput',0);
             %P = cellfun(@(Im,m) PadImage(Im,m,patchSize,patchSize,Height,Width,0),P_cropped_tot,mu,'uniformoutput',0);
-            P_Weighted = cellfun(@(p, nbg, i, cellsize) RegularizeIntensity(p,nbg,i,cellsize,1.5),P_cropped_tot,nBG_cropped,I_cropped,cellSize,'uniforOutput',false);
-            P = cellfun(@(Im,m) PadImage(Im,m,patchSize,patchSize,Height,Width,0),P_Weighted,mu,'uniformoutput',0);
+            %P_Weighted = cellfun(@(p,nbg,i,cellsize) RegularizeIntensity(p,ones(size(p)),nbg,i,cellsize,1.5),P_cropped_tot,nBG_cropped,I_cropped,cellSize,'uniformoutput',false);
             
-        else
-            %Phi_norm = cellfun(@(phi) phi./Sphi,Phi_moved,'uniformoutput',0);
-            %Phi_cropped = cellfun(@(Im,m) CropImage(Im,m,patchSize,patchSize),Phi_norm,mu,'uniformoutput',0);
-            
-            Phi_cropped = cellfun(@(Im,m) CropImage(Im,m,patchSize,patchSize),Phi_moved,mu,'uniformoutput',0);
-             Phi_cropped_stat = cellfun(@(Im,m) CropImage(Im,m,patchSize,patchSize),Phi_stat,mu,'uniformoutput',0);
-            I_cropped = cellfun(@(m) CropImage(I,m,patchSize,patchSize),mu,'uniformoutput',0);
-            if save_debug
-                DEBUG{itr}.Phi_cropped = Phi_cropped;
-            end
-            invG_cropped = cellfun(@(m) CropImage(invG,m,patchSize,patchSize),mu,'uniformoutput',0);
-            nBG_cropped = cellfun(@(m) CropImage(nBG,m,patchSize,patchSize),mu,'uniformoutput',0);
-            if save_debug
-                DEBUG{itr}.nBG_cropped = nBG_cropped;
-            end
-            U_cropped = cellfun(@(Im,m) CropImage(Im,m,patchSize,patchSize),U,mu,'uniformoutput',0);
-            mu_cropped = cellfun(@(u,phi)FindMuCOM(u.*phi),U_cropped,Phi_cropped,'uniformoutput',0);
-            mu_cropped_stat =  cellfun(@(mc,m,lm) (round(mc+-m+lm)) ,mu_cropped,mu,last_mu,'uniformoutput',false);
-            if save_debug
-                DEBUG{itr}.mu_cropped = mu_cropped;
-            end
-            Speed_cropped = cellfun(@(nbg,invg,phi) max(phi.*(nbg).*(invg),1e-8),nBG_cropped,invG_cropped,Phi_cropped,'uniformoutput',0);
-            
-            %Speed_cropped = cellfun(@fixSpeedIm,Speed_cropped,mu_cropped,P_pred,'uniformoutput',0);
-            if save_debug
-                DEBUG{itr}.Speed_cropped= Speed_cropped;
-            end
-            if ~geoOnly
-            D_cropped = cellfun(@CreateDiffDist,Speed_cropped,mu_cropped,'uniformoutput',0);
-            D_cropped_stat = cellfun(@CreateDiffDist,Speed_cropped,mu_cropped_stat,'uniformoutput',0);
-            else
-                [~,D_cropped] = cellfun(@CreateDiffDist,Speed_cropped,mu_cropped,'uniformoutput',0);
-                [~,D_cropped_stat] = cellfun(@CreateDiffDist,Speed_cropped,mu_cropped_stat,'uniformoutput',0);
-            
-            end
-            if save_debug
-                DEBUG{itr}.D_cropped = D_cropped;
-            end
-            P_cropped = cellfun(@(phi,d) 1./(d+1),Phi_cropped,D_cropped,'uniformoutput',0);
-            P_cropped_stat = cellfun(@(phi,d) phi./(d+1),Phi_cropped_stat,D_cropped_stat,'uniformoutput',0);
-            P_cropped_tot = cellfun(@createPTot ,P_cropped,P_cropped_stat,U_cropped,mu_cropped,mu_cropped_stat,'uniformoutput',false);
-            %P_cropped_tot = cellfun(@(phi,d,p,u,m,ms) (p.*u(m(1),m(2))+u(ms(1),ms(2))./(d+1))./(u(m(1),m(2))+u(ms(1),ms(2))),Phi_cropped_stat,D_cropped_stat,P_cropped,U_cropped,mu_cropped,mu_cropped_stat,'uniformoutput',0);
             %P = cellfun(@(Im,m) PadImage(Im,m,patchSize,patchSize,Height,Width,0),P_cropped_tot,mu,'uniformoutput',0);
-            P_Weighted = cellfun(@(p, nbg, i, cellsize) RegularizeIntensity(p,nbg,i,cellsize,1.5),P_cropped_tot,nBG_cropped,I_cropped,cellSize,'uniforOutput',false);
-            P = cellfun(@(Im,m) PadImage(Im,m,patchSize,patchSize,Height,Width,0),P_Weighted,mu,'uniformoutput',0);
+            sparseP = cellfun(@(p,ind) sparse(ind,ones(size(ind)),p(:),Height*Width,1),P_cropped,cropInd,'uniformoutput',false); 
+            Pmat = cat(2,sparseP{:});
             
-        end
-        
-        Pmat = cat(3,P{:});
-        
-        
-        %BGSkel = bwmorph(nBG<0.5,'skel',inf);
-        [BGy,BGx] = find(nBG<0.5);
+            [BGy,BGx] = find(nBG<0.5);
         rng(1);
         %r = randperm(numel(BGx),ceil(numel(BGx)./10));
         perim = zeros(size(nBG));
@@ -346,7 +300,7 @@ try
         %DBGe = max(graydist(ones(size(SE)),BGx(r),BGy(r),'quasi-euclidean'),eps);
         SE = nBG;
         DBGg = max(graydist(1./SE,perimx,perimy,'quasi-euclidean'),eps);
-        DBGe = max(graydist(ones(size(SE)),perimx,perimy,'quasi-euclidean'),eps);
+        DBGe = max(double(bwdist(perim,'quasi-euclidean')),eps);
         
         if ~geoOnly
              DBGDiff= DBGg-DBGe;
@@ -354,17 +308,74 @@ try
              DBGDiff= DBGg;
         end
         pBG = 1./(1+DBGDiff);
-        S = sum(Pmat,3)+pBG;
-        S(S==0)=eps;
+        else
+            %Phi_norm = cellfun(@(phi) phi./Sphi,Phi_moved,'uniformoutput',0);
+            %Phi_cropped = cellfun(@(Im,m) CropImage(Im,m,patchSize,patchSize),Phi_norm,mu,'uniformoutput',0);
+            
+            [Phi_cropped cropInd] = cellfun(@(Im,m) CropImage(Im,m,patchSize,patchSize),Phi_moved,mu,'uniformoutput',0);
+             Phi_cropped_stat = cellfun(@(Im,m) CropImage(Im,m,patchSize,patchSize),Phi_stat,mu,'uniformoutput',0);
+            I_cropped = cellfun(@(m) CropImage(I,m,patchSize,patchSize),mu,'uniformoutput',0);
+            if save_debug
+                DEBUG{itr}.Phi_cropped = Phi_cropped;
+            end
+            invG_cropped = cellfun(@(m) CropImage(invG,m,patchSize,patchSize),mu,'uniformoutput',0);
+            nBG_cropped = cellfun(@(m) CropImage(nBG,m,patchSize,patchSize),mu,'uniformoutput',0);
+            if save_debug
+                DEBUG{itr}.nBG_cropped = nBG_cropped;
+            end
+            U_cropped = cellfun(@(Im,m) CropImage(reshape(Im,Height,Width),m,patchSize,patchSize),U,mu,'uniformoutput',0);
+            mu_cropped = cellfun(@(u,phi)FindMuCOM(u.*phi),U_cropped,Phi_cropped,'uniformoutput',0);
+            mu_cropped_stat =  cellfun(@(mc,m,lm) (round(mc+-m+lm)) ,mu_cropped,mu,last_mu,'uniformoutput',false);
+            if save_debug
+                DEBUG{itr}.mu_cropped = mu_cropped;
+            end
+            Speed_cropped = cellfun(@(nbg,invg,phi) phi.*max((nbg).*(invg),1e-8),nBG_cropped,invG_cropped,Phi_cropped,'uniformoutput',0);
+            Speed_cropped_stat = cellfun(@(nbg,invg,phi) phi.*max((nbg).*(invg),1e-8),nBG_cropped,invG_cropped,Phi_cropped_stat,'uniformoutput',0);
+            
+            %Speed_cropped = cellfun(@fixSpeedIm,Speed_cropped,mu_cropped,P_pred,'uniformoutput',0);
+            if save_debug
+                DEBUG{itr}.Speed_cropped= Speed_cropped;
+            end
+            if ~geoOnly
+            [D_cropped, Dg,De] = cellfun(@CreateDiffDist,Speed_cropped,mu_cropped,'uniformoutput',0);
+            [D_cropped_stat, Dgs, Des] = cellfun(@CreateDiffDist,Speed_cropped_stat,mu_cropped_stat,'uniformoutput',0);
+            else
+                [~,D_cropped] = cellfun(@CreateDiffDist,Speed_cropped,mu_cropped,'uniformoutput',0);
+                [~,D_cropped_stat] = cellfun(@CreateDiffDist,Speed_cropped,mu_cropped_stat,'uniformoutput',0);
+            
+            end
+            if save_debug
+                DEBUG{itr}.D_cropped = D_cropped;
+            end
+            P_cropped = cellfun(@(phi,d) 1./(d+1),Phi_cropped,D_cropped,'uniformoutput',0);
+            P_cropped_stat = cellfun(@(phi,d) 1./(d+1),Phi_cropped_stat,D_cropped_stat,'uniformoutput',0);
+            P_cropped_tot = cellfun(@createPTot ,P_cropped,P_cropped_stat,U_cropped,mu_cropped,mu_cropped_stat,'uniformoutput',false);
+            %P_cropped_tot = cellfun(@(phi,d,p,u,m,ms) (p.*u(m(1),m(2))+u(ms(1),ms(2))./(d+1))./(u(m(1),m(2))+u(ms(1),ms(2))),Phi_cropped_stat,D_cropped_stat,P_cropped,U_cropped,mu_cropped,mu_cropped_stat,'uniformoutput',0);
+            %P = cellfun(@(Im,m) PadImage(Im,m,patchSize,patchSize,Height,Width,0),P_cropped_tot,mu,'uniformoutput',0);
+            global counter
+            counter = 0;
+            P_Weighted = cellfun(@(p,de,u, nbg, i, cellsize) RegularizeIntensity(p,u,de,nbg,i,cellsize,5e5),P_cropped,De,U_cropped,nBG_cropped,I_cropped,cellSize,'uniformoutput',false);
+            %P = cellfun(@(Im,m) PadImage(Im,m,patchSize,patchSize,Height,Width,0),P_Weighted,mu,'uniformoutput',0);
+            sparseP = cellfun(@(p,ind) sparse(ind,ones(size(ind)),p(:),Height*Width,1),P_Weighted,cropInd,'uniformoutput',false); 
+            Pmat = cat(2,sparseP{:});
+        end
+        
+        %Pmat = reshape(full(cell2mat(P)),Height,Width,[]);
+        
+        
+        %BGSkel = bwmorph(nBG<0.5,'skel',inf);
+        S = max(sum(Pmat,2) + 1e-4*pBG(:),eps);
+
+        
         %p = prctile(S(:),0.1);
         %S = S + p;
-        UBG = max(pBG,eps)./S;
+        %UBG = max(pBG,eps)./S;
         %{
         U_cropped = cellfun(@(u,nbg) u.*nbg,U_cropped,nBG_cropped,'uniformoutput',false);
         U = cellfun(@(u) u.*nBG,U,'uniformoutput',false);
         %}
         %% This part is new June 19th 
-        [U,U_cropped] = cellfun(@(p,m) NormalizeAndCropU(p,S.*nBG,m,patchSize),P,mu,'uniformoutput',0);
+        [U,U_cropped] = cellfun(@(p,m) NormalizeAndCropU(p,S,nBG,m,patchSize),sparseP,mu,'uniformoutput',0);
         
         %U_cropped = cellfun(@corU, U_cropped,Phi_cropped,'uniformoutput',false);
         %U  = cellfun(@(Im,m) PadImage(Im,m,patchSize,patchSize,Height,Width,0),U_cropped,mu,'uniformoutput',0);
@@ -385,7 +396,9 @@ try
         end
         mu_prev = mu;
         %mu = cellfun(@(u,phi,phis) XY*(u(:).*(phi(:)+phis(:)))./max(sum(u(:).*(phis(:)+phi(:))),eps),U,Phi_moved,Phi_stat,'UniformOutput',false);
-        mu = cellfun(@(u,s) XY*(u(:).*s(:)./max(sum(u(:).*(s(:))),eps)),U,ss4,'UniformOutput',false);
+        if itr>1
+        mu = cellfun(@(u,phi,phis) XY(:,(nBG(:)>0.5))*(u(nBG(:)>0.5))./max(sum(u(nBG(:)>0.5)),eps),U,Phi_moved,Phi_stat,'UniformOutput',false);
+        end
         prev_size = cell_size;
         cell_size = cellfun(@(u) round(I(:)'*u(:)),U,'uniformoutput',false);
         [err,err_idx] = max(sqrt(sum((cell2mat(cell_size)-cell2mat(prev_size)).^2,1)));
@@ -413,7 +426,9 @@ try
             Speed_cropped = Speed_cropped(remove_cell);
             D_cropped = D_cropped(remove_cell);
             P_cropped = P_cropped(remove_cell);
-            P = P(remove_cell);
+            cropInd = cropInd(remove_cell);
+            %P = P(remove_cell);
+            sparseP = sparseP(remove_cell);
             U_cropped = U_cropped(remove_cell);
             U = U(remove_cell);
             last_mu = last_mu(remove_cell);
@@ -427,9 +442,9 @@ try
         end
         
     end
-    Ureturn = cat(3,min(1,UBG+eps),U{:});
+    %Ureturn =reshape(full(cell2mat(U)),Height,Width,[]);
     
-    U = cellfun(@(u,phi,phis) u , U,Phi_moved,Phi_stat,'UniformOutput',false);
+    %U = cellfun(@(u,phi,phis) u , U,Phi_moved,Phi_stat,'UniformOutput',false);
     Us = cellfun(@(u,phi,phis) sparseSingle(u),U,Phi_moved,Phi_stat,'UniformOutput',false);
     [enKalmans(:).U] = deal(Us{:});
     
@@ -441,13 +456,14 @@ try
     
     
     
-    FullP = P;
-    FullP{end+1}=pBG;
-    PP = cat(3,min(1,pBG+1e-2),FullP{:});
+    %FullP = P;
+    %FullP{end+1}=pBG;
+    %PP = cat(3,min(1,pBG+1e-2),FullP{:});
      
-    z = cell2mat(shiftdim(FullP,-1));
+    %z =reshape(full(cell2mat(FullP)),Height,Width,[]);
     
-    [~,L] = max(Ureturn,[],3);
+    [~,L] = max(cat(2,1-nBG(:),U{:}),[],2);
+    L = reshape(L,Height,Width);
     %L(L>length(P))=0;
     %[~,L] = max(PP,[],3);
     L = L-1;
@@ -542,12 +558,17 @@ BW = zeros(size(BW_Full));
 BW(Idx(:)) = BW_Full(Idx(:));
 %BW = imdilate(BW,ones(3));
 end
-function Cropped = CropImage(I,c,h,w,varargin)
+function [Cropped, ind] = CropImage(I,c,h,w,varargin)
 y1 = max(round(c(1)-h/2),1);
 y2 = min(round(c(1)+h/2),size(I,1));
 x1 = max(round(c(2)-w/2),1);
 x2 = min(round(c(2)+w/2),size(I,2));
+
 Cropped = I(y1:y2,x1:x2);
+if nargout>1
+    [X,Y] = meshgrid(x1:x2,y1:y2);
+    ind = sub2ind(size(I),Y(:),X(:));
+end
 end
 
 function Cropped_mu = CropMu(c,h,w) %#ok<*DEFNU>
@@ -567,8 +588,12 @@ end
 
 
 function PadI = PadImage(I,c,h,w,H,W,padv)
-PadI = padv*ones(H,W);
-
+if padv==0
+    PadI = sparse(H,W);
+else
+    
+    PadI = padv*ones(H,W);
+end
 y1 = max(round(c(1)-h/2),1);
 y2 = min(round(c(1)+h/2),H);
 x1 = max(round(c(2)-w/2),1);
@@ -682,7 +707,9 @@ if any(isnan(SE(:)))||any(isnan(mu))||any(mu<1)||mu(1)>size(SE,1)||mu(2)>size(SE
     %fprintf('Fast Marching will crash!')
 end
 Dg = max(graydist(1./SE,mu(2),mu(1),'quasi-euclidean'),eps);
-De = max(graydist(ones(size(SE)),mu(2),mu(1),'quasi-euclidean'),eps);
+BW = zeros(size(SE));
+BW(mu(1),mu(2)) = 1;
+De = max(double(bwdist(BW,'quasi-euclidean')),eps);
 %Dg = max(msfm2d(SE,mu,true,true),eps);
 DiffD = max(Dg-De,0);
 end
@@ -726,7 +753,7 @@ mu_cropped =  CropMu(meas_mu,patchSize,patchSize);
 [X,Y] = meshgrid(1:size(BW_cropped,2),1:size(BW_cropped,1));
 %G = reshape(mvnpdf([X(:),Y(:)],mu_cropped',sigma(1:2,1:2)),size(X));
 SDF_moved_cropped = SDF(BW_cropped);
-Phi_moved_cropped = 1./(1+exp(-2*SDF_moved_cropped./(HD.*pi).*sqrt(3)));
+Phi_moved_cropped = 1./(1+exp(-SDF_moved_cropped./(2.*pi).*sqrt(3)));
 %PhiG = imfilter(G,double(Phi_moved_cropped),'same');
 PhiG = Phi_moved_cropped;%.*mvnpdf(meas_mu',est_mu',sigma(1:2,1:2))./mvnpdf(est_mu',est_mu',sigma(1:2,1:2));
 Phi_moved = PadImage(PhiG,meas_mu,patchSize,patchSize,H,W,0);
@@ -734,9 +761,9 @@ Phi_moved = PadImage(PhiG,meas_mu,patchSize,patchSize,H,W,0);
 valid = any(BW_cropped(:));
 end
 
-function [U,U_cropped] = NormalizeAndCropU(P,S,mu,patchSize)
-U = P./S;
-U_cropped= CropImage(U,mu,patchSize,patchSize);
+function [U,U_cropped] = NormalizeAndCropU(P,S,nBG,mu,patchSize)
+U = P./S.*nBG(:);
+U_cropped= CropImage(reshape(U,size(nBG)),mu,patchSize,patchSize);
 end
 
 function ptot = createPTot(p,ps,u,m,ms)
@@ -775,12 +802,15 @@ peak(peaky,peakx)=1;
 uout = filter2(flipud(fliplr(phi)),peak);
 end
 
-function [PWeighted,PixelWeights] = RegularizeIntensity(P_cropped,nBG_cropped,I_cropped,cellSize,alpha)
-
-[~,sid] = sort(P_cropped(:),'descend');
+function [PWeighted,PixelWeights] = RegularizeIntensity(P_cropped,U_cropped,De,nBG_cropped,I_cropped,cellSize,alpha)
+global counter
+counter = counter+1;
+[~,sid] = sort(U_cropped(:)./(1+De(:)),'descend');
 sortedSum = zeros(size(P_cropped));
-sortedSum(sid) = cumsum(I_cropped(sid).*nBG_cropped(sid));
+sortedSum(sid) = cumsum(I_cropped(sid).*(nBG_cropped(sid)));
 sortedSum = reshape(sortedSum,size(P_cropped));
-PixelWeights = max(0,min(1,(sortedSum./((1-alpha).*cellSize)-(alpha./(1-alpha)))));
+PixelWeights = max(eps,min(1,(sortedSum./((1-alpha).*cellSize)-(alpha./(1-alpha)))));
+
+%PixelWeights = max(eps,min(1,(-(sortedSum-cellSize)./alpha + 1)));
 PWeighted = PixelWeights.*P_cropped;
 end

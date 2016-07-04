@@ -47,5 +47,5 @@ elseif midx<intmax('uint32')
 else
     S.idx = uint64(idx);
 end
-S.val = single(A(idx));
+S.val = single(full(A(idx)));
 end
