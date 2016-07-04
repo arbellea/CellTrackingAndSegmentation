@@ -1,20 +1,20 @@
 * General
-Name = 'LahavLab-Jose3_20X_s101_June19'
+Name = 'LahavLab-Jose3_20X_s101_June27_2'
 emailAddress = 'arbellea@post.bgu.ac.il'
 
 * Flags
 WriteVideo = true;
 SaveDebug = 0;
 deleteIfErr = false;
-SaveCheckPoints = 2;
-LoadCheckPoints = 147;
+SaveCheckPoints = 1;
+LoadCheckPoints = false;
 
 
 * load_data_params
-data_path = fullfile('.','Input','Galit_Lahav','Jose3','M20150416_p21_20X');
+data_path = fullfile(getenv('HOME'),'Input','Galit_Lahav','Jose3','M20150416_p21_20X');
 extention = '*.TIF';
 expr = 'M20150416_w2CFP_s101_t(\d+).TIF'
-tagged_data_path = fullfile('.','Input','Galit_Lahav','Jose3' ,'Manual_Seg_M20150416_p21_20X');
+tagged_data_path = fullfile(getenv('HOME'),'Input','Galit_Lahav','Jose3' ,'Manual_Seg_M20150416_p21_20X');
 tagged_extention = '*.tif';
 tagged_expr = 'ManualSeg_(\d+).tif'
 
@@ -28,7 +28,7 @@ patchSize = 150;
 edgeQ = 2;
 edgeK = 5;
 geoOnly = false;
-stop_frame = 250
+stop_frame = 100
 
 * mitosisParams
 	enable = false;

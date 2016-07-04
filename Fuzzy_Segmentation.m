@@ -395,10 +395,10 @@ try
             DEBUG = [];
         end
         mu_prev = mu;
-        %mu = cellfun(@(u,phi,phis) XY*(u(:).*(phi(:)+phis(:)))./max(sum(u(:).*(phis(:)+phi(:))),eps),U,Phi_moved,Phi_stat,'UniformOutput',false);
-        if itr>1
-        mu = cellfun(@(u,phi,phis) XY(:,(nBG(:)>0.5))*(u(nBG(:)>0.5))./max(sum(u(nBG(:)>0.5)),eps),U,Phi_moved,Phi_stat,'UniformOutput',false);
-        end
+
+        mu = cellfun(@(u,phi,phis) XY*(u(:).*(phis(:)+phi(:)))./max(sum(u(:).*(phis(:)+phi(:))),eps) ,U,Phi_moved,Phi_stat,'UniformOutput',false);
+        
+        %mu2 = cellfun(@(m,u,phi,phis) calcMu(m,u,phi,phis,patchSize,patchSize) ,mu,U_cropped,Phi_cropped,Phi_cropped_stat,'UniformOutput',false);
         prev_size = cell_size;
         cell_size = cellfun(@(u) round(I(:)'*u(:)),U,'uniformoutput',false);
         [err,err_idx] = max(sqrt(sum((cell2mat(cell_size)-cell2mat(prev_size)).^2,1)));
