@@ -22,7 +22,7 @@ if SaveCheckPoints||LoadCheckPoints
     t = 'CheckPoints';
 end
 if Save_images
-    save_dir_name =fullfile(getenv('HOME'),'Outputs',sprintf('Results_%s_%s',Params.General.Name,t));
+    save_dir_name =fullfile('Outputs',sprintf('Results_%s_%s',Params.General.Name,t));
     save_dir_vis = fullfile(save_dir_name,'Visualize');
     save_dir_res = fullfile(save_dir_name,'Results');
     
@@ -123,7 +123,7 @@ try
         tSeg = tic;
         fprintf('Start Segmentation of frame %d...\n',t);
         %[~,L,L_New_Cells,~,Kalmans,z_pred,z_pred_orig,cog_diff,Debug] = Fuzzy_SegmentationTammy(Tracking,Kalmans,I,I_prev,Tracking.L,segParams,any(save_debug));
-        [L,L_New_Cells,Kalmans,z_pred,z_pred_orig,cog_diff,Debug] = Fuzzy_Segmentation(Tracking,Kalmans,I,I_prev,segParams,any(save_debug));
+        [~,L,L_New_Cells,~,Kalmans,z_pred,z_pred_orig,cog_diff,Debug] = Fuzzy_Segmentation(Tracking,Kalmans,I,I_prev,segParams,any(save_debug));
         disabeledKalmans = Kalmans(~[Kalmans.enabled]);
         z_pred_orig = z_pred_orig(~[Kalmans.enabled]);
         L_New_Cells_orig = L_New_Cells;
@@ -363,7 +363,7 @@ try
                 Kalmans(m).num_props = 0;
                 Kalmans(m).Children =[];
                 Kalmans(m).prev_state = states(n).kalman_state;
-                Kalmans(m).weightedSize = inf;
+                Kalmans(m).weightedSize = states(n).weightedSize;
                 Kalmans(m).state = states(n).kalman_state;
                 Kalmans(m).HD =100;
                 Kalmans(m).size = states(n).size;

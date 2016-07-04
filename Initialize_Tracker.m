@@ -110,7 +110,6 @@ for t = 1:min(4,tagged_data.Frame_Num)
             Kalmans(end).new = true;
             Kalmans(end).enabled = true;
             Kalmans(end).cycle = 0;
-            Kalmans(end).weightedSize = states(n).weightedSize;
             continue;
         end
         states(n).kalman_state(6:10) =states(n).kalman_state(1:5)-prev_states(m).kalman_state(1:5);
