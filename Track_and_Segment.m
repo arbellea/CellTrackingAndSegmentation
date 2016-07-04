@@ -123,7 +123,7 @@ try
         tSeg = tic;
         fprintf('Start Segmentation of frame %d...\n',t);
         %[~,L,L_New_Cells,~,Kalmans,z_pred,z_pred_orig,cog_diff,Debug] = Fuzzy_SegmentationTammy(Tracking,Kalmans,I,I_prev,Tracking.L,segParams,any(save_debug));
-        [~,L,L_New_Cells,~,Kalmans,z_pred,z_pred_orig,cog_diff,Debug] = Fuzzy_Segmentation(Tracking,Kalmans,I,I_prev,segParams,any(save_debug));
+        [~,L,L_New_Cells,~,Kalmans,z_pred,z_pred_orig,cog_diff,Debug,splits] = Fuzzy_Segmentation(Tracking,Kalmans,I,I_prev,segParams,any(save_debug));
         disabeledKalmans = Kalmans(~[Kalmans.enabled]);
         z_pred_orig = z_pred_orig(~[Kalmans.enabled]);
         L_New_Cells_orig = L_New_Cells;

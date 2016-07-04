@@ -1,4 +1,4 @@
-function [Ureturn,L,L_New_Cell,z,Kalmans,z_pred,z_pred_orig,cog_diff,DEBUG] = Fuzzy_Segmentation(Tracking,Kalmans,I,I_prev,params,save_debug) %#ok<INUSD>
+function [Ureturn,L,L_New_Cell,z,Kalmans,z_pred,z_pred_orig,cog_diff,DEBUG,splits] = Fuzzy_Segmentation(Tracking,Kalmans,I,I_prev,params,save_debug) %#ok<INUSD>
 [Height,Width]=size(I);
 [X,Y] = meshgrid(1:Width,1:Height);
 
@@ -452,7 +452,8 @@ try
     %NotBG = imerode(NotBG,ones(3));
     NotBGFull = NotBG;
     NotBG_Candidates = [];
-    links = {};
+ 
+    splits = [];
     strelOpen = strel('disk',4);
     for l = unique(L(L>0))'
         BW = L==l;
@@ -488,6 +489,7 @@ try
             if any(idxx==1)||any(idxy==1)||any(idxx==Width)||any(idxy==Height)||any(idxxC==1)||any(idxyC==1)||any(idxxC==s(2))||any(idxyC==s(1))
                 flags(i) = true;
                 NotBG_Candidates = cat(1,NotBG_Candidates,NotBG_Candidates_l(i));
+                splits(numel(NotBG_Candidates)) = -1;
                 NotBGFull(NotBG_Candidates_l(i).PixelIdxList) = 1;
                 L(NotBG_Candidates_l(i).PixelIdxList) = 0;
             end
@@ -495,12 +497,14 @@ try
         end
 
         if sum(~flags)>1
+            numCand = numel(NotBG_Candidates);
             NotBG_Candidates = cat(1,NotBG_Candidates,NotBG_Candidates_l(~flags));
             NotBGFull(L==l) = 1;
             L(L==l) = 0;
             Kalmans([Kalmans(:).ID]==l).enabled = false;
             NotBG_Candidates_l = NotBG_Candidates_l(~flags);
             Kalmans([Kalmans(:).ID]==l).Children = NotBG_Candidates_l;
+            splits(numCand+1:numel(NotBG_Candidates)) = l;
             
            
         end
@@ -508,7 +512,9 @@ try
     NotBG = imerode(NotBG,ones(3));
     NotBG_Candidates_bg = regionprops(NotBG,'Solidity','Area','PixelIdxList','Centroid');
     NotBG_Candidates = cat(1,NotBG_Candidates,NotBG_Candidates_bg);
+    splits(end+1:numel(NotBG_Candidates)) = -1;
     New_Cells = NotBG_Candidates([NotBG_Candidates.Solidity]>Solidity_Thr&[NotBG_Candidates.Area]>min_cell_size);
+    splits = splits([NotBG_Candidates.Solidity]>Solidity_Thr&[NotBG_Candidates.Area]>min_cell_size);
     if ~isempty(New_Cells)
         BW_New_Cell = arrayfun(@(x) Create_New_Cell_L(NotBGFull,x.PixelIdxList),New_Cells,'UniformOutput',false);
         BWMAT = cat(3,BW_New_Cell{:});
