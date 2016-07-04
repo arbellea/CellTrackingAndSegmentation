@@ -312,7 +312,6 @@ try
             Kalmans(n).Contour = states(n).Contour;
             Kalmans(n).BW = states(n).BW;
             Kalmans(n).HD = states(n).HD;
-            Kalmans(n).weightedSize = states(n).weightedSize;
             
             p=1;
             Kalmans(n).state(6:end) = p*(Kalmans(n).state(1:5)-Kalmans(n).prev_state(1:5))+(1-p)*(Kalmans(n).prev_state(6:end));
@@ -363,7 +362,6 @@ try
                 Kalmans(m).num_props = 0;
                 Kalmans(m).Children =[];
                 Kalmans(m).prev_state = states(n).kalman_state;
-                Kalmans(m).weightedSize = states(n).weightedSize;
                 Kalmans(m).state = states(n).kalman_state;
                 Kalmans(m).HD =100;
                 Kalmans(m).size = states(n).size;
