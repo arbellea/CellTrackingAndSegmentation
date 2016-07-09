@@ -102,9 +102,10 @@ try
         mBG1 = Tracking.dens_x(mbgidx);
         I = double(imread(data.Frame_name{t}));
         I = I-Tracking.B;
-        prc = Tracking.prc;
-        I = min(max(I,prc(1)),prc(2));
-        I = (I-min(I(:)))/(max(I(:))-min(I(:)))*Tracking.maxgray;
+        I = max(I,0);
+        %prc = Tracking.prc;
+        %I = min(max(I,prc(1)),prc(2));
+        %I = (I-min(I(:)))/(max(I(:))-min(I(:)))*Tracking.maxgray;
         I = step(Tracking.med_filt,I);
         %Ip = mBG1*ones(size(I)+20);
         %Ip(11:size(I,1)+10,11:size(I,2)+10) = I;
@@ -112,8 +113,9 @@ try
         figure(1); imshow(I,[]);
         I_prev = double(imread(data.Frame_name{t-1}));
         I_prev = I_prev-Tracking.B;
-        I_prev = min(max(I_prev,prc(1)),prc(2));
-        I_prev = (I_prev-min(I_prev(:)))/(max(I_prev(:))-min(I_prev(:)))*Tracking.maxgray;
+        I_prev = max(I_prev,0);
+        %I_prev = min(max(I_prev,prc(1)),prc(2));
+        %I_prev = (I_prev-min(I_prev(:)))/(max(I_prev(:))-min(I_prev(:)))*Tracking.maxgray;
         I_prev = step(Tracking.med_filt,I_prev);
         
         %Ip = mBG1*ones(size(I_prev)+20);
@@ -189,6 +191,8 @@ try
                                 new = new+1;
                                 L(L(:)==motherID) = 0;
                             end
+                        elseif ~any(candidateList(cc).Daughters>Tracking.maxCellID)
+                            continue;
                         else
                             for d = 1:2
                                 L(L_Merged(:)==candidateList(cc).Daughters(d)) = 0;

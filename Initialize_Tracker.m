@@ -40,6 +40,7 @@ for t = 1:min(4,tagged_data.Frame_Num)
     L = double(imread(tagged_data.Frame_name{t}));
     Tracking.L = L;
     [I,B] =  CalcBGLighting2(I,L==0);
+    I = max(I,0);
     if t==1
     
     prc = prctile(I(:),[sum(L(:)~=0)./numel(L),100-sum(L(:)~=0)./numel(L)]);
@@ -47,8 +48,8 @@ for t = 1:min(4,tagged_data.Frame_Num)
     else
         prc = Tracking.prc;
     end
-    I = min(max(I,prc(1)),prc(2));
-    I = (I-min(I(:)))/(max(I(:))-min(I(:)))*Tracking.maxgray;
+    %I = min(max(I,prc(1)),prc(2));
+    %I = (I-min(I(:)))/(max(I(:))-min(I(:)))*Tracking.maxgray;
     if Params.mitosisParams.enable
     frame = Frame(t,I,L,data.Frame_name{t});
     Tracking.mtdx.AddFrame(frame);
