@@ -122,7 +122,7 @@ try
     gradI = calc_Grad_I(I);
     invG = max(1./(1+(gradI./(k*std(gradI(:)))).^q),0.01);
     sigG = P_pred{1}(3,3);
-    Pi = cellfun(@(gg)  reshape(sqrt(2*pi)*sigG*1e3*normpdf(I(:),gg,sigG*1e3),size(I)), g,'uniformoutput',false);
+    %Pi = cellfun(@(gg)  reshape(sqrt(2*pi)*sigG*1e3*normpdf(I(:),gg,sigG*1e3),size(I)), g,'uniformoutput',false);
     %SP = sum(cat(3,Pi{:}),3);        
     %Pi = cellfun(@(pi) pi./SP , Pi,'uniformoutput',false);
     %%
@@ -241,7 +241,7 @@ try
             %Pi_cropped = cellfun(@(m,p) CropImage(p,m,patchSize,patchSize),mu,Pi,'uniformoutput',0);
     
             I_cropped = cellfun(@(m) CropImage(I,m,patchSize,patchSize),mu,'uniformoutput',0);
-            Pi_cropped = cellfun(@(gg,i)  reshape(sqrt(2*pi)*sigG*1e2*normpdf(i(:),gg,sigG*1e2),size(i)), g,I_cropped,'uniformoutput',false);
+            PGray_cropped = cellfun(@(gg,i)  reshape(sqrt(2*pi)*sigG*1e2*normpdf(i(:),gg,sigG*1e2),size(i)), g,I_cropped,'uniformoutput',false);
     
             %nEdge_cropped = cellfun(@(m) CropImage(nEdge,m,patchSize,patchSize),mu,'uniformoutput',0);
             if save_debug
@@ -251,7 +251,7 @@ try
             mu_cropped =  cellfun(@(m)CropMu(m,patchSize,patchSize),mu,'uniformoutput',false);
             mu_cropped_stat =  cellfun(@(mc,m,lm) (round(mc-m+lm)) ,mu_cropped,mu,last_mu,'uniformoutput',false);
             
-            mu_cropped = cellfun(@FindMostLiklymuGray,nBG_cropped,invG_cropped,mu_cropped,P_pred,Pi_cropped,'uniformoutput',0);
+            mu_cropped = cellfun(@FindMostLiklymuGray,nBG_cropped,invG_cropped,mu_cropped,P_pred,PGray_cropped,'uniformoutput',0);
             
             tmp = cellfun(@isempty,mu_cropped);
             if any(tmp)
@@ -283,7 +283,7 @@ try
             %P_Weighted = cellfun(@(p,nbg,i,cellsize) RegularizeIntensity(p,ones(size(p)),nbg,i,cellsize,1.5),P_cropped_tot,nBG_cropped,I_cropped,cellSize,'uniformoutput',false);
             
             %P = cellfun(@(Im,m) PadImage(Im,m,patchSize,patchSize,Height,Width,0),P_cropped_tot,mu,'uniformoutput',0);
-            sparseP = cellfun(@(p,ind) sparse(ind,ones(size(ind)),p(:),Height*Width,1),P_cropped,cropInd,'uniformoutput',false); 
+            sparseP = cellfun(@(p,ind) sparse(ind,ones(size(ind)),p(:),Height*Width,1),P_cropped_tot,cropInd,'uniformoutput',false); 
             Pmat = cat(2,sparseP{:});
             
             [BGy,BGx] = find(nBG<0.5);
@@ -298,7 +298,7 @@ try
         %SE = (1-nBG).*invG;
         %DBGg = max(graydist(1./SE,BGx(r),BGy(r),'quasi-euclidean'),eps);
         %DBGe = max(graydist(ones(size(SE)),BGx(r),BGy(r),'quasi-euclidean'),eps);
-        SE = nBG;
+        SE = nBG.*nBG>0.5;
         DBGg = max(graydist(1./SE,perimx,perimy,'quasi-euclidean'),eps);
         DBGe = max(double(bwdist(perim,'quasi-euclidean')),eps);
         
@@ -347,14 +347,14 @@ try
             if save_debug
                 DEBUG{itr}.D_cropped = D_cropped;
             end
-            P_cropped = cellfun(@(phi,d) 1./(d+1),Phi_cropped,D_cropped,'uniformoutput',0);
-            P_cropped_stat = cellfun(@(phi,d) 1./(d+1),Phi_cropped_stat,D_cropped_stat,'uniformoutput',0);
+            P_cropped = cellfun(@(phi,d) phi./(d+1),Phi_cropped,D_cropped,'uniformoutput',0);
+            P_cropped_stat = cellfun(@(phi,d) phi./(d+1),Phi_cropped_stat,D_cropped_stat,'uniformoutput',0);
             P_cropped_tot = cellfun(@createPTot ,P_cropped,P_cropped_stat,U_cropped,mu_cropped,mu_cropped_stat,'uniformoutput',false);
             %P_cropped_tot = cellfun(@(phi,d,p,u,m,ms) (p.*u(m(1),m(2))+u(ms(1),ms(2))./(d+1))./(u(m(1),m(2))+u(ms(1),ms(2))),Phi_cropped_stat,D_cropped_stat,P_cropped,U_cropped,mu_cropped,mu_cropped_stat,'uniformoutput',0);
             %P = cellfun(@(Im,m) PadImage(Im,m,patchSize,patchSize,Height,Width,0),P_cropped_tot,mu,'uniformoutput',0);
             global counter
             counter = 0;
-            P_Weighted = cellfun(@(p,de,u, nbg, i, cellsize) RegularizeIntensity(p,u,de,nbg,i,cellsize,5e5),P_cropped,De,U_cropped,nBG_cropped,I_cropped,cellSize,'uniformoutput',false);
+            P_Weighted = cellfun(@(p,de,u, nbg, i, cellsize) RegularizeIntensity(p,u,de,nbg,i,cellsize,1.2),P_cropped_tot,De,U_cropped,nBG_cropped,I_cropped,cellSize,'uniformoutput',false);
             %P = cellfun(@(Im,m) PadImage(Im,m,patchSize,patchSize,Height,Width,0),P_Weighted,mu,'uniformoutput',0);
             sparseP = cellfun(@(p,ind) sparse(ind,ones(size(ind)),p(:),Height*Width,1),P_Weighted,cropInd,'uniformoutput',false); 
             Pmat = cat(2,sparseP{:});
@@ -627,10 +627,10 @@ end
 
 end
 
-function mu = FindMostLiklymuGray(PG,invG,mu,sigma,pi)
+function mu = FindMostLiklymuGray(PG,invG,mu,sigma,PGray)
 [X,Y] = meshgrid(1:size(PG,2),1:size(PG,1));
 G = reshape(mvnpdf([Y(:),X(:)],mu',rot90(sigma(1:2,1:2),2)),size(X));
-[~,ind] = max(pi(:).*PG(:).*invG(:).*G(:));
+[~,ind] = max(PGray(:).*PG(:).*invG(:).*G(:));
 [muy mux]=ind2sub(size(PG),ind);
 %[muy,mux]=find((PG.*invG.*G.*pi)==max(pi(:).*PG(:).*invG(:).*G(:)),1);
 %mu = round([Y(:),X(:)]'*(PG(:).*Phi(:))./sum(PG(:).*Phi(:)));
@@ -809,7 +809,7 @@ counter = counter+1;
 sortedSum = zeros(size(P_cropped));
 sortedSum(sid) = cumsum(I_cropped(sid).*(nBG_cropped(sid)));
 sortedSum = reshape(sortedSum,size(P_cropped));
-PixelWeights = max(eps,min(1,(sortedSum./((1-alpha).*cellSize)-(alpha./(1-alpha)))));
+PixelWeights = max(1e-4,min(1,(sortedSum./((1-alpha).*cellSize)-(alpha./(1-alpha)))));
 
 %PixelWeights = max(eps,min(1,(-(sortedSum-cellSize)./alpha + 1)));
 PWeighted = PixelWeights.*P_cropped;
