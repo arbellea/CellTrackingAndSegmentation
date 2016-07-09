@@ -2,10 +2,10 @@ function main(txtFileName)
 dbclear if caught error
 myCluster = parcluster('local');
 myCluster.NumWorkers
-poolobj = gcp('nocreate');
-if isempty(poolobj)
-poolobj = parpool(min(1,myCluster.NumWorkers),'IdleTimeout', 240);
-end
+%poolobj = gcp('nocreate');
+%if isempty(poolobj)
+%poolobj = parpool(min(1,myCluster.NumWorkers),'IdleTimeout', 240);
+%end
 if ~isunix
 dbstop if caught error
 end
