@@ -3,3 +3,5 @@
 *.mat
 *.txt
 *.avi
+ParamFiles*.*
+*.log
