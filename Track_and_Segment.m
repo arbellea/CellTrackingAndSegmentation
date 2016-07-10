@@ -250,13 +250,13 @@ try
             remainingKalmans = disabeledKalmans([disabeledKalmans.enabled]);
             remainingDaughters = setdiff(unique(L_New_Cells_orig(L_New_Cells==0)),0);
             if ~isempty(remainingKalmans)&&~isempty(remainingDaughters)
+                s = regionprops(L_New_Cells_orig.*(L_New_Cells==0),'Centroid');  
                 lpCost = zeros((numel(remainingKalmans)+numel(remainingDaughters)));
                 [H,W] = size(L);
                 for i = 1:numel(remainingKalmans)
                     cog_prev = z_pred_orig{i}(1:2);
                     for j = 1:numel(remainingDaughters)
-                        s = regionprops(L_New_Cells_orig==remainingDaughters(j),'Centroid');
-                        cog_cur = s.Centroid;
+                        cog_cur = s(remainingDaughters(j)).Centroid;
                         lpCost(i,j) = sqrt((cog_cur-cog_prev)*(cog_cur-cog_prev)');
                         lpCost(numel(remainingKalmans)+1:end,j) = min(abs([cog_cur-1,cog_cur-[W,H]]));
                     end
