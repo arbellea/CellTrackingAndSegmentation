@@ -17,6 +17,8 @@ resPath = fullfile(HOME,'Outputs','Results_LahavLab-Jose3_20X_s101_June14_CheckP
 %resPath = fullfile(HOME,'Outputs','Results_LahavLab-Jose3_20X_s101_June18_CheckPoints','Results'); Name = 's101_TPT';
 %resPath = fullfile(HOME,'Outputs','Results_LahavLab-Jose3_20X_s101_June25_CheckPoints','Results'); Name = 's101 - Regularized'; 
 %resPath = fullfile(HOME,'Outputs','Results_LahavLab-Jose3_20X_s101_June27_2_CheckPoints','Results'); Name = 's101 - Regularized'; 
+resPath = fullfile(HOME,'Outputs','Results_LahavLab-Jose3_20X_s101_July9_CheckPoints','Results'); Name = 's101-Regularized'; 
+%resPath = fullfile(HOME,'Outputs','Results_LahavLab-Jose3_20X_s101_July10_Mitosis_CheckPoints','Results'); Name = 's101-Reg-Mitosis'; 
 
 resExt = '*.TIF';
 resExp = 'Seg_M20150416_w2CFP_s101_t(\d+).TIF';
