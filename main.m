@@ -13,7 +13,6 @@ addpath(genpath(fullfile('.','SourceCode')));
 if isunix
     addpath(genpath(fullfile('.','MitodixGit')));
 else
-    
     addpath(genpath(fullfile('..','Mitodix')));
 end
 warning off;
@@ -27,6 +26,11 @@ if isfield(Params.General,'emailAddress')
     emailAddress = Params.General.emailAddress;
 else
     emailAddress = [];
+end
+if isfield(Params.Flags,'profile')&&Params.Flags.profile
+    profile on;
+else
+    Params.Flags.profile = false;
 end
 fprintf('Loading Images... Please Wait...\n');
 if isfield(Params.load_data_params,'expr');
@@ -82,14 +86,32 @@ if ~isempty(emailAddress)
 msg = sprintf('Error analyzing  %s!!!\n %s',txtFileName,errmsg);
 sendmail(emailAddress,'BGU Cluster Report #0', msg);
 end
-delete(poolobj);
+%delete(poolobj);
+if Params.Flags.profile
+if isunix
+    profile off
+    profsave
+else
+    profile off
+    profile viewer
+end
+end
 rethrow(err);
 
 end
 
+if Params.Flags.profile
+if isunix
+    profile off
+    profsave
+else
+    profile off
+    profile viewer
+end
+end
 
 
 
-delete(poolobj);
+%delete(poolobj);
 %profile off;profile viewer;
 
