@@ -77,14 +77,14 @@ try
         cents(isnan(cents))=[];
         cents = reshape(cents,2,[]);
         id = unique(Seg(Seg>0));
-        Contours = arrayfun(@(l) abs((Seg==l)-imerode(Seg==l,ones(3))),id,'uniformoutput',0);
+        Contours = arrayfun(@(l) find(bwperim(Seg==l)),id,'uniformoutput',0);
         mval =intmax(class(I));
         
         IR = uint8(I); IG = uint8(I); IB = uint8(I);
-        C = logical(cat(3,Contours{:}));
-        CNew = logical(cat(3,Contours{~ismember(id,idprev)}));
-        C2d = any(C,3);
-        CNew2d = any(CNew,3);
+        C = cat(1,Contours{:});
+        CNew = (cat(1,Contours{~ismember(id,idprev)}));
+        C2d = unique(C);
+        CNew2d = unique(CNew);
         IR(C2d(:))=mval;IG(C2d(:))=0;IB(C2d(:))=0;IB(CNew2d(:)) = mval;
         
         text_loc = [cents(1,:);cents(2,:)-5]';
