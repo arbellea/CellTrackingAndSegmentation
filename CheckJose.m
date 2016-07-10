@@ -264,7 +264,7 @@ end
 %%
 totalLinks = 0;
 correctLinks = nan(2,numel(LinkStruct));
-
+correctLinksAll = zeros(size(MatchMed,2),2);
 sisLinks = 0;
 for i = 1:numel(LinkStruct)
      if LinkStruct(i).t>size(MatchMed,2)
@@ -291,7 +291,16 @@ for i = 1:numel(LinkStruct)
     if d==2&daughterAuto(1)==daughterAuto(2)
         sisLinks = sisLinks+1;
     end
+    correctLinksAll(time,1) = correctLinksAll(time,1)+sum(correctLinks(:,i)>0); 
+    correctLinksAll(time,2) = correctLinksAll(time,2)+sum(correctLinks(:,i)>=0);
 end
+
+    fprintf('Sister Link Accuracy: %0.2f\n',sum(correctLinks(:)>0)./sum(correctLinks(:)>=0)*100)
+figure; bar(correctLinksAll(:,2)); hold on; bar(correctLinksAll(:,2)-correctLinksAll(:,1),'r'); hold off;
+legend('Manual Link','Error')
+xlabel('frame #'); ylabel('freq'); title(sprintf('%s:Mitosis Links & Errors: %d erros out of %d',Name,sum(correctLinksAll(:,2))-sum(correctLinksAll(:,1)),sum(correctLinksAll(:,2))))
+
+%%
 %%
 return
 %%
