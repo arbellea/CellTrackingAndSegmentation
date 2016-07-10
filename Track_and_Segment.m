@@ -29,7 +29,18 @@ if Save_images
     mkdir(save_dir_vis);
     mkdir(save_dir_res);
     mkdir(save_dir_name);
+    if isfield(Params.Flags,'saveCode')&&Params.Flags.saveCode
+        ticSaveCode = tic;
+    zipPath  = fullfile(save_dir_name,'Code.zip');
+    mainpath = fileparts(which('main.m'));
+    filelist = dir(mainpath);
+    hidden = arrayfun(@(f) (f.name(1)~='.')&&all(~strcmpi(f.name,{'mitodix.log','license'})),filelist);
+    fnames = arrayfun(@(f) fullfile(mainpath,f.name),filelist(hidden),'uniformoutput',false);
     
+    zip(zipPath,fnames);
+    tocSaveCode = toc(ticSaveCode);
+    fprintf('Done Saving Code in %0.3f seconds...\n',tocSaveCode)
+    end
 end
 save_dir_checkp = fullfile(save_dir_name,'CheckPoints');
 if SaveCheckPoints
