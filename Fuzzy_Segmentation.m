@@ -170,14 +170,14 @@ try
         end
         if itr==1
             %Gauss = cellfun(@(m,p) reshape(mvnpdf([Y(:),X(:)],m',rot90(p(1:2,1:2)*10,2)),size(X)),est_mu,P_pred,'uniformoutput',false);
-       
-            Dist = cellfun(@(m,p) calcDistMap(X,Y,m,p(1),2*patchSize) ,est_mu,P_pred,'uniformoutput',false);
-            sumDist =reshape(sum(cat(2,Dist{:}),2)+eps,size(X));
+            
+            Gauss = cellfun(@(m,p) reshape((p(1,1)*10).^2./sum([Y(:)-m(1),X(:)-m(2)].^2,2),size(X)),est_mu,P_pred,'uniformoutput',false);
+            sumGauss =sum(cat(3,Gauss{:}),3)+eps;
            
             %mu = cellfun(@(m,p) FindMostLiklymuGray(nBG,invG,m,p),mu,P_pred,'uniformoutput',0);
-            mu = cellfun(@(d) FindMostLiklymuGray2(nBG,invG,reshape(d,size(X)),sumDist,ones(size(X))),Dist,'uniformoutput',0);
+            mu = cellfun(@(g) FindMostLiklymuGray2(nBG,invG,g.^2,sumGauss,ones(size(g))),Gauss,'uniformoutput',0);
             if conserveMemory
-                clear Dist;
+                clear Gauss;
             end
         end
         [Phi_moved,~,~,~,~,valid] = cellfun(@(bw,em,mm,l,sigma,hd) movePhi(fullSingle(bw),em,mm,l,hd,sigma,patchSize),BWs,est_mu,mu,last_mu,P_pred,HDs,'uniformoutput',0);
