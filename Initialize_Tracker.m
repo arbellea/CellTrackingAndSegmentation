@@ -119,8 +119,8 @@ for t = 1:min(4,tagged_data.Frame_Num)
         [z_corr,x_corr,P_corr] = correct(Kalmans(m).kalman,states(n).kalman_state);
         
         [p1y,p1x] = find(fullSingle(Kalmans(m).Contour)); [p2y,p2x]=find(fullSingle(states(n).Contour));
-        p2x = p2x - z_corr(1)+Kalmans(m).prev_state(1) ;
-        p2y = p2y - z_corr(2)+Kalmans(m).prev_state(2) ;
+        p2x = p2x - states(n).kalman_state(1)+Kalmans(m).prev_state(1) ;
+        p2y = p2y - states(n).kalman_state(2)+Kalmans(m).prev_state(2) ;
         p1 = [p1y,p1x];p2=[p2y,p2x];
         hd = HausdorffDist(p1,p2);
         if isempty(hd)
@@ -132,6 +132,7 @@ for t = 1:min(4,tagged_data.Frame_Num)
         Kalmans(m).Contour = states(n).Contour;
         Kalmans(m).BW = states(n).BW;
         Kalmans(m).cycle = Kalmans(m).cycle+1;
+        Kalmans(m).state = states(n).kalman_state;
     end
 Tracking.B = Tracking.B +B;
     
