@@ -1,18 +1,20 @@
 * General
-Name = 'LahavLab-Jose3_20X_s103_June14'
+Name = 'LahavLab-Jose3_20X_s103_July13'
 emailAddress = 'arbellea@post.bgu.ac.il'
 
 * Flags
 WriteVideo = true;
 SaveDebug = 0;
 deleteIfErr = false;
-SaveCheckPoints = 2;
-LoadCheckPoints = true ;
+SaveCheckPoints = 1;
+LoadCheckPoints = 67 ;
+saveCode = true;
+profile = false;
 
 
 * load_data_params
-data_path = fullfile('.','Input','Galit_Lahav','Jose3','M20150416_p21_20X');
-%data_path = fullfile('D:\DataFromJose\M20150416_p21_20X');
+%data_path = fullfile(getenv('HOME'),'Input','Galit_Lahav','Jose3','M20150416_p21_20X');
+data_path = fullfile('D:\DataFromJose\M20150416_p21_20X');
 extention = '*.TIF';
 expr = 'M20150416_w2CFP_s103_t(\d+).TIF'
 tagged_data_path = fullfile('.','Input','Galit_Lahav','Jose3' ,'Manual_Seg_M20150416_p21_20X');

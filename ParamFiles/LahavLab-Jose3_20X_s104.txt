@@ -1,13 +1,15 @@
 * General
-Name = 'LahavLab-Jose3_20X_s104_June17'
+Name = 'LahavLab-Jose3_20X_s104_July12'
 emailAddress = 'arbellea@post.bgu.ac.il'
 
 * Flags
 WriteVideo = true;
 SaveDebug = 0;
 deleteIfErr = false;
-SaveCheckPoints = 2;
-LoadCheckPoints = true ;
+SaveCheckPoints = 10;
+LoadCheckPoints = false ;
+saveCode = true;
+profile = false;
 
 
 * load_data_params

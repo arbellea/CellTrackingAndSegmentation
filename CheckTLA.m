@@ -1,21 +1,14 @@
-function [varargout]=CheckJose(txtfilePath,data_path,extention,expr,resPath,resExt,resExp,Name)
+function [varargout]=CheckTLA(txtfilePath,TLAoutput,H,W,Name)
 if ~exist('Name','var')||isempty(Name)||~ischar(Name)
     Name = '';
 end
 %%
+load(TLAoutput)
 manualTrack = readtable(txtfilePath,'Delimiter','\t','Format','%f%f%f%f%f%f%f');
 manualTrackOrig = manualTrack;
 varargout{1} = manualTrackOrig;
-%%
-load(fullfile(resPath,'..','Link.mat'));
-%%
-Data = Load_Data(data_path,extention,expr) ;
-ResData = Load_Data(resPath,resExt,resExp) ;
-%%
 manualTrack = readtable(txtfilePath,'Delimiter','\t','Format','%f%f%f%f%f%f%f');
 b = 10;
-H = ResData.Height;
-W = ResData.Width;
 %%manualTrack = readtable(txtfilePath,'Delimiter','\t','Format','%f%f%f%f%f%f%f');
 manualTrackOrig = manualTrack;
 existingCells = manualTrack.cell_id(manualTrack.timepoint==1);
@@ -62,9 +55,6 @@ for t = 2:max(manualTrack.timepoint)
             daughterCell = splitSisi(2);
         else
         existSis = ismember(splitSisi,existingCells);
-        if all(~existSis)
-            continue
-        end
         motherCell = splitSisi(existSis);
         daughterCell = splitSisi(~existSis);
         end
@@ -127,44 +117,38 @@ manualTrack = manualTrack(manualTrack.cell_id>0,:);
 varargout{1} = manualTrack;
 varargout{2} = manualTrackOrig;
 %%
-Match = nan(max(manualTrack.cell_id),min(max(manualTrack.timepoint),ResData.Frame_Num));
-GTgl = nan(max(manualTrack.cell_id),min(max(manualTrack.timepoint),Data.Frame_Num));
-GTvar = nan(max(manualTrack.cell_id),min(max(manualTrack.timepoint),Data.Frame_Num));
-AutoGL = nan(max(manualTrack.cell_id),min(max(manualTrack.timepoint),ResData.Frame_Num));
-AutoVar = nan(max(manualTrack.cell_id),min(max(manualTrack.timepoint),ResData.Frame_Num));
+Frame_Num = numel(tlaresult.Special.caCentroidMatrix);
+Match = nan(max(manualTrack.cell_id),min(max(manualTrack.timepoint),Frame_Num));
 %%
-S = imread(ResData.Frame_name{end});
-maxIDAuto = max(S(:));
-AutoGL2 = nan(maxIDAuto,min(max(manualTrack.timepoint),ResData.Frame_Num));
-AutoVar2 = nan(max(manualTrack.cell_id),min(max(manualTrack.timepoint),ResData.Frame_Num));
 
-for t = 1:Data.Frame_Num
+maxIDAuto = numel(tlaresult.Special.caTrackMatrix);
+
+for t = 1:Frame_Num
     %%
-     I = double(imread(Data.Frame_name{t}));
-    if t<=ResData.Frame_Num
-    S = imread(ResData.Frame_name{t});
-     %for s = unique(S(S>0))'
-     %   AutoGL2(s,t) = mean(I(S(:)==s));
-     %   
-     %   AutoVar2(s,t) = var(I(S(:)==s));
-     %end
+    S = zeros(H,W);
+    for trackid = 1:numel(tlaresult.Special.caTrackMatrix)
+        track = tlaresult.Special.caTrackMatrix{trackid};
+        cent = round(track(t,:));
+        if ~any(isnan(cent))
+            centy = max(1,cent(2)-2):min((cent(2)+2),H);
+            centx = max(1,cent(2)-2):min((cent(2)+2),W);
+            S(centy,centx) = trackid;
+        end
     end
-   
-    sizeS = size(I);
+        
+        
+        
     
     for i = find(manualTrack.timepoint==t)'
-        col = manualTrack.centroid_col(i) + [-1,-1,-1,0,0,0,1,1,1]';
-        row = manualTrack.centroid_row(i) + [-1,0,1,-1,0,1,-1,0,1]';
-        col =min( max(col,1),sizeS(2));
-        row =min( max(row,1),sizeS(1));
-        cents = sub2ind(sizeS,col,row);
-        if t<=ResData.Frame_Num
-        Match(manualTrack.cell_id(i),t)=mode(S(cents));
+        col = manualTrack.centroid_col(i) + -1:1;
+        row = manualTrack.centroid_row(i) + -1:1;
+        col =min( max(col,1),W);
+        row =min( max(row,1),H);
+        subS = S(row,col);
+        Match(manualTrack.cell_id(i),t)=median(subS(:));
         %AutoGL(manualTrack.cell_id(i),t) = mean(I(S(:)== Match(manualTrack.cell_id(i),t)));
         %AutoVar(manualTrack.cell_id(i),t)= var(I(S(:)== Match(manualTrack.cell_id(i),t)));
-        end
-        GTgl(manualTrack.cell_id(i),t)=mean(I(cents));
-        GTvar(manualTrack.cell_id(i),t)=var(I(cents));
+        
     end
    
     %cents = sub2ind(size(S),manualTrack.centroid_col(manualTrack.timepoint==t),manualTrack.centroid_row(manualTrack.timepoint==t));
@@ -173,22 +157,13 @@ for t = 1:Data.Frame_Num
 end
 MatchOrig = Match;
 
-%%
-for l = numel(Link):-1:1
-    for m = 1:numel(Link(l).Children)
-      Match(Match== Link(l).Children(m)) = Link(l).Mother;
-    end
-end
-%%
-varargout{3} = Match; 
-varargout{4} = MatchOrig;
 
 %%
 med_filt = vision.MedianFilter([1,7]);
 MatchMed = step(med_filt,Match);
 MatchMed(:,end-2:end) = Match(:,end-2:end);
 %%
-varargout{5} = MatchMed;
+
 %%
 uMatch = cell(size(Match,1),1);
 for t =1:size(Match,2)
@@ -206,10 +181,6 @@ else
     acc2(t) = 1;
 end
 end
-varargout{6} = diffM;
-varargout{7} = L;
-varargout{8} = GTgl;
-varargout{9} = GTvar;
 %varargout{10} = AutoGL;
 %varargout{11} = AutoVar;
 %varargout{12} = AutoGL2;
@@ -283,7 +254,7 @@ for i = 1:numel(LinkStruct)
     correctLinks(:,i)=-1;
     mother = LinkStruct(i).Mother.ID;
     timeVec = max(1,time-5):time-1;
-    motherAuto = mode(MatchMed(mother,timeVec));
+    motherAuto = median(MatchMed(mother,timeVec));
     timeVec = time:min(size(MatchMed,2),time+4);
     daughterAuto = median(MatchMed([LinkStruct(i).Daughter.ID],timeVec),2);
     for d = 1:numel(daughterAuto)
@@ -321,17 +292,15 @@ ind = 0
  cellid = cc(ind);
  tp = tt(ind);
 
-%%
- MatchMed(cellid,max(tp-2,1):tp+2)
+
+ MatchMed(cellid,tp-2:tp+2)
  mt = manualTrack(manualTrack.timepoint==tp&manualTrack.cell_id==cellid,1:4)
- %I1 = imread(Data.Frame_name{tp-2}); 
- I2 = imread(Data.Frame_name{tp-1});
+ I1 = imread(Data.Frame_name{tp-2}); I2 = imread(Data.Frame_name{tp-1});
  I3 = imread(Data.Frame_name{tp});
- I4 = imread(Data.Frame_name{tp+1}); 
- I5 = imread(Data.Frame_name{tp+2});
+ I4 = imread(Data.Frame_name{tp+1}); I5 = imread(Data.Frame_name{tp+2});
  
  
- p = prctile(double(I3(:)),[1,99]);
+ p = prctile(double(I1(:)),[1,99]);
  
  figure(100);
  
@@ -349,8 +318,7 @@ ind = 0
  imshow(I3,p); a(3) = gca;hold on;scatter(manualTrack.centroid_row(manualTrack.timepoint==tp&manualTrack.cell_id==cellid),manualTrack.centroid_col(manualTrack.timepoint==tp&manualTrack.cell_id==cellid),'*g','linewidth',2); hold off;
  title(sprintf('Frame #%d',tp))
  
- %I1 = imread(visData.Frame_name{tp-2}); 
- I2 = imread(visData.Frame_name{tp-1});
+ I1 = imread(visData.Frame_name{tp-2}); I2 = imread(visData.Frame_name{tp-1});
  I3 = imread(visData.Frame_name{tp});
  I4 = imread(visData.Frame_name{tp+1}); I5 = imread(visData.Frame_name{tp+2});
  

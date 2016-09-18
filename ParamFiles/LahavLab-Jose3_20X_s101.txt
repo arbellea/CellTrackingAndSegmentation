@@ -1,12 +1,12 @@
 * General
-Name = 'LahavLab-Jose3_20X_s101_July10_Mitosis'
+Name = 'LahavLab-Jose3_20X_s101_July14'
 emailAddress = 'arbellea@post.bgu.ac.il'
 
 * Flags
 WriteVideo = true;
 SaveDebug = 0;
 deleteIfErr = false;
-SaveCheckPoints = 2;
+SaveCheckPoints = 10;
 LoadCheckPoints = true;
 profile = false;
 saveCode = true;
