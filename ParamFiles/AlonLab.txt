@@ -21,16 +21,19 @@ tagged_extention = '*.tif';
 tagged_expr = 'cell_calibrate2-P01.(\d+).tif'
 
 * parameters
-cellPrior = 0.6 ;
-minCellSize = 150;
-maxItr = 2;
+cellPrior = 0.9 ;
+minCellSize = 100;
+maxItr = 4;
 minErr = 10;
 regImages = true;
-solidityThr = 0.8;
+solidityThr = 0.5;
 pathcSize = 150;
 edgeQ = 2;
 edgeK = 5;
-stop_frame = inf;
+stop_frame= inf;
+useGMM = true % True for GMM, False for KDE
+Kbg = 2; % Only relevant when useGMM=true
+Kfg = 3; % Only relevant when useGMM=true
 
 * mitosisParams
 	enable = false;

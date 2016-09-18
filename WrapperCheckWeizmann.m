@@ -8,7 +8,7 @@ extention = '*.TIF';
 expr = 'calibrate2-P01.(\d+).TIF';
 
 
-resPath = fullfile(HOME,'Outputs','Results_AlonLab_CheckPoints','Results'); Name = 'Weizmann-Ours'; %ORIGINAL
+resPath = fullfile(HOME,'Outputs','Results_AlonLab_CheckPoints','Results'); Name = 'H1299-Ours'; %ORIGINAL
 
 resExt = '*.TIF';
 

@@ -135,7 +135,7 @@ end
 bar(histBins,pathLengthHist,1); hold on;
 bar(histBins,trackErrByLength,0.8,'r'); hold off;
 legend('Manual Track','Error')
-xlabel('path lengths'); ylabel('freq'); title(sprintf('%s: Path Lebgths of Manual Tracks & Errors',Name))
+xlabel('path lengths'); ylabel('freq'); title(sprintf('%s: Path Lebgths of Manual Tracks & Errors, %3.2f %% Accuracy',Name,sum(trackErrByLength)./sum(pathLengthHist)))
 %%
 errPerFrame = sum(diffM~=0&~isnan(diffM),1);
 cellNum = sum(~isnan(diffM),1);

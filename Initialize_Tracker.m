@@ -137,23 +137,38 @@ for t = 1:min(4,tagged_data.Frame_Num)
 Tracking.B = Tracking.B +B;
     
 end
-u = (4/(3*min(numel(DensBGPoints)+numel(DensCellPoints))))^(1./5)*std(cat(1,DensCellPoints,DensBGPoints));
-dens_cells = FastKDE(DensCellPoints,dens_x,u);
-            dens_BG = FastKDE(DensBGPoints,dens_x,u);
-%dens_cells = ksdensity(DensCellPoints,dens_x);
-%dens_BG = ksdensity(DensBGPoints,dens_x);
-%dens_edge = ksdensity(DensEdgePoints,dens_x);
-mucells = mean(DensCellPoints);
-mubg = mean(DensBGPoints);
-%dens_BG(dens_BG<=dens_cells&dens_x<=mubg) = 1000*dens_cells(dens_BG<=dens_cells&dens_x<=mubg);
-%dens_BG(dens_x<=mubg) = dens_BG(round(mubg));
-%dens_cells(dens_cells==0&dens_x>=mucells) = 100*eps;
-Tracking.dens_cells = dens_cells;
-Tracking.dens_BG = dens_BG;
-%Tracking.dens_edge = dens_edge;
+
+if isfield(Params.parameters,'useGMM')&&Params.parameters.useGMM
+   
+    Kbg = Params.parameters.Kbg;
+    Kfg = Params.parameters.Kfg;
+    gmmOpts = statset('MaxIter',500);
+    gmmBG = fitgmdist(DensBGPoints(DensBGPoints>0),Kbg,'Options',gmmOpts);
+    gmmFG = fitgmdist(DensCellPoints(DensCellPoints>0),Kfg,'Options',gmmOpts);
+    gmmBG = gmdistribution(gmmBG.mu,gmmBG.Sigma,ones(1,Kbg)./Kbg);
+    gmmFG = gmdistribution(gmmFG.mu,gmmFG.Sigma,ones(1,Kfg)./Kfg);
+    Tracking.dens_BG = pdf(gmmBG,dens_x');
+    Tracking.dens_cells = pdf(gmmFG,dens_x');
+else
+     u = (4/(3*min(numel(DensBGPoints)+numel(DensCellPoints))))^(1./5)*std(cat(1,DensCellPoints,DensBGPoints));
+    dens_cells = FastKDE(DensCellPoints,dens_x,u);
+                dens_BG = FastKDE(DensBGPoints,dens_x,u);
+    %dens_cells = ksdensity(DensCellPoints,dens_x);
+    %dens_BG = ksdensity(DensBGPoints,dens_x);
+    %dens_edge = ksdensity(DensEdgePoints,dens_x);
+    mucells = mean(DensCellPoints);
+    mubg = mean(DensBGPoints);
+    %dens_BG(dens_BG<=dens_cells&dens_x<=mubg) = 1000*dens_cells(dens_BG<=dens_cells&dens_x<=mubg);
+    %dens_BG(dens_x<=mubg) = dens_BG(round(mubg));
+    %dens_cells(dens_cells==0&dens_x>=mucells) = 100*eps;
+    Tracking.dens_cells = dens_cells;
+    Tracking.dens_BG = dens_BG;
+    %Tracking.dens_edge = dens_edge;
+    
+end
 Tracking.priorBG = sum(L(:)==0)./length(L(:));
-Tracking.priorCell = 1-Tracking.priorBG;
-Tracking.dens_x = dens_x;
+    Tracking.priorCell = 1-Tracking.priorBG;
+    Tracking.dens_x = dens_x;
 Tracking.B = Tracking.B./t;
 
 Tracking.Kalmans = Kalmans;

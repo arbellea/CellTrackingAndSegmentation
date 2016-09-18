@@ -70,7 +70,7 @@ end
 try
     PBG = Tracking.dens_BG(round(I)+1);
     P_Cell = Tracking.dens_cells(round(I)+1);
-   
+   figure(8); plot(Tracking.dens_x,1-Tracking.dens_cells./(Tracking.dens_cells+Tracking.dens_BG)); pause(0.1);
    % alpha = (sum(Tracking.L(:)>0)./numel(Tracking.L))
     nBG = alpha*P_Cell./(alpha*(P_Cell)+(1-alpha)*PBG);
     

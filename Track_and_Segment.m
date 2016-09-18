@@ -480,33 +480,46 @@ try
         DensCellPoints =[];
         DensBGPoints = [];
         DensEdgePoints = [];
-        if mod(t,1)==0&&exist('DensCellPoints','var')&&exist('DensBGPoints','var')
+        if mod(t,10)==0&&exist('DensCellPoints','var')&&exist('DensBGPoints','var')
             LCells = L>0;
             %LEdges = logical(imdilate(LCells,ones(3))- LCells);
             LBG = ~(LCells);
             DensCellPoints = cat(1,DensCellPoints,I(LCells&I<Tracking.maxgray));
             DensBGPoints = cat(1,DensBGPoints,I(LBG));
             %DensEdgePoints = cat(1,DensEdgePoints,I(LEdges));
-            u = (4/(3*min(numel(DensBGPoints)+numel(DensCellPoints))))^(1./5)*max(std(DensCellPoints),std(DensBGPoints));
-            dens_cells = FastKDE(DensCellPoints,Tracking.dens_x,u);
-            dens_BG = FastKDE(DensBGPoints,Tracking.dens_x,u);
-            zz = find(dens_cells==0&dens_cells==0);
-            %dens_edge = FastKDE(DensEdgePoints,Tracking.dens_x,u);
-            % dens_cells = ksdensity(DensCellPoints,Tracking.dens_x,'bandwidth',u);
-            % dens_BG = ksdensity(DensBGPoints,Tracking.dens_x,'bandwidth',u);
-            % dens_edge = ksdensity(DensEdgePoints,Tracking.dens_x,'bandwidth',u);
-            zd = knnsearch([DensCellPoints;DensBGPoints],zz');
-            dens_cells(zz(zd<=numel(DensCellPoints))) = eps;
-            dens_BG(zz(zd>numel(DensCellPoints))) = eps;
-            mucells = mean(DensCellPoints);
-            mubg = mean(DensBGPoints);
-            %dens_BG(Tracking.dens_x<=mubg) = dens_BG(round(mubg));
-            %dens_cells(dens_cells==0&Tracking.dens_x>=mucells) = 100*eps;
-            %Tracking.dens_edge = dens_edge;
-            Tracking.dens_cells = dens_cells;
-            Tracking.dens_BG = dens_BG;
-            Tracking.priorBG = sum(L(:)==0)./length(L(:));
-            Tracking.priorCell = 1-Tracking.priorBG;
+            if isfield(Params.parameters,'useGMM')&&Params.parameters.useGMM
+                Kbg = Params.parameters.Kbg;
+                Kfg = Params.parameters.Kfg;
+                gmmOpts = statset('MaxIter',500);
+                gmmBG = fitgmdist(DensBGPoints(DensBGPoints>0),Kbg,'Options',gmmOpts);
+                gmmFG = fitgmdist(DensCellPoints(DensCellPoints>0),Kfg,'Options',gmmOpts);
+                gmmBG = gmdistribution(gmmBG.mu,gmmBG.Sigma,ones(1,Kbg)./Kbg);
+                gmmFG = gmdistribution(gmmFG.mu,gmmFG.Sigma,ones(1,Kfg)./Kfg);
+                Tracking.dens_BG = pdf(gmmBG,Tracking.dens_x');
+                Tracking.dens_cells = pdf(gmmFG,Tracking.dens_x');
+            else
+                u = (4/(3*min(numel(DensBGPoints)+numel(DensCellPoints))))^(1./5)*max(std(DensCellPoints),std(DensBGPoints));
+                dens_cells = FastKDE(DensCellPoints,Tracking.dens_x,u);
+                dens_BG = FastKDE(DensBGPoints,Tracking.dens_x,u);
+                zz = find(dens_cells==0&dens_cells==0);
+                %dens_edge = FastKDE(DensEdgePoints,Tracking.dens_x,u);
+                % dens_cells = ksdensity(DensCellPoints,Tracking.dens_x,'bandwidth',u);
+                % dens_BG = ksdensity(DensBGPoints,Tracking.dens_x,'bandwidth',u);
+                % dens_edge = ksdensity(DensEdgePoints,Tracking.dens_x,'bandwidth',u);
+                zd = knnsearch([DensCellPoints;DensBGPoints],zz');
+                dens_cells(zz(zd<=numel(DensCellPoints))) = eps;
+                dens_BG(zz(zd>numel(DensCellPoints))) = eps;
+                mucells = mean(DensCellPoints);
+                mubg = mean(DensBGPoints);
+                %dens_BG(Tracking.dens_x<=mubg) = dens_BG(round(mubg));
+                %dens_cells(dens_cells==0&Tracking.dens_x>=mucells) = 100*eps;
+                %Tracking.dens_edge = dens_edge;
+                Tracking.dens_cells = dens_cells;
+                Tracking.dens_BG = dens_BG;
+                Tracking.priorBG = sum(L(:)==0)./length(L(:));
+                Tracking.priorCell = 1-Tracking.priorBG;
+                
+            end
         elseif mod(t,1)>=0
             LCells = L>0;
             LEdges = logical(imdilate(LCells,ones(3))- LCells);
