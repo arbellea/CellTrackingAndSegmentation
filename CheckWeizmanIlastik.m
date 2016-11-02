@@ -1,11 +1,12 @@
-function [varargout]=CheckWeizmanIlastik(cellData,LinkData,data_path,extention,expr,resPath,Name)
+function [varargout]=CheckWeizmanIlastik(cellData,LinkData,segData,data_path,extention,expr,resPath,csvPath,Name)
 if ~exist('Name','var')||isempty(Name)||~ischar(Name)
     Name = '';
 end
 
 %%
-load(fullfile(resPath,'..','Link.mat'));
+%load(fullfile(resPath,'..','Link.mat'));
 %%
+csvData = readtable(csvPath);
 Data = Load_Data(data_path,extention,expr) ;
 fileinfo = hdf5info(resPath);
 ResData = hdf5read(fileinfo.GroupHierarchy.Datasets(1));
@@ -15,26 +16,32 @@ ResData = squeeze(reshape(ResData,fileinfo.GroupHierarchy.Datasets.Dims));
 b = 15;
 H = size(ResData,1);
 W = size(ResData,2);
-FrameNum = size(ResData,3);
+Frame_Num = size(ResData,3);
 
 
 %%
-maxID = max(cellData,3);
-Match = nan(max(manualTrack.cell_id),min(max(manualTrack.timepoint),FrameNum));
-GTgl = nan(max(manualTrack.cell_id),min(max(manualTrack.timepoint),Data.Frame_Num));
-GTvar = nan(max(manualTrack.cell_id),min(max(manualTrack.timepoint),Data.Frame_Num));
-AutoGL = nan(max(manualTrack.cell_id),min(max(manualTrack.timepoint),FrameNum));
-AutoVar = nan(max(manualTrack.cell_id),min(max(manualTrack.timepoint),FrameNum));
+maxID = size(cellData,3);
+Match = nan(max(maxID),min(size(cellData,1),Frame_Num));
+GTgl = nan(max(maxID),min(size(cellData,1),Frame_Num));
+GTvar = nan(max(maxID),min(size(cellData,1),Frame_Num));
+AutoGL =nan(max(maxID),min(size(cellData,1),Frame_Num));
+AutoVar = nan(max(maxID),min(size(cellData,1),Frame_Num));
+
 
 
 %%
-S =(ResData(:,:,end);
+S =ResData(:,:,end);
 maxIDAuto = max(S(:));
 xyt = shiftdim(cellData,1);
 xyt(:,squeeze(xyt(1,:,:))<b | squeeze(xyt(1,:,:)>(W-b))) = nan;
 xyt(:,squeeze(xyt(2,:,:))<b | squeeze(xyt(2,:,:)>(H-b))) = nan;
-for t = 1:Data.Frame_Num
+segTP = 0;
+segFP = 0;
+segFN = 0;
+for t = 1:min(Data.Frame_Num,size(xyt,3))
     %%
+    label = csvData.labelimage_oid(csvData.timestep==(t-1));
+    trackid = csvData.lineage_id(csvData.timestep==(t-1));
      I = double(imread(Data.Frame_name{t}));
      xy = xyt(:,:,t);
      
@@ -49,17 +56,48 @@ for t = 1:Data.Frame_Num
     end
    
     sizeS = size(I);
+    allUniqueS = unique(S(S>0));
+    manSeg = zeros(size(I));
     
-    for i = availableCells
+    for c = 1:size(segData,2)
+        manSeg(segData{t,c}) = c;
+    end
+    segFlag = false;
+    for i = 1:size(segData,2)
+        
+        if ~isempty(segData{t,i})
+            segFlag = true;
+            uniqueS = unique(S(segData{t,i}))';
+            uniqueS = setdiff(uniqueS,0);
+            j = zeros(1:numel(uniqueS));
+            for ii = 1:numel(uniqueS)
+                indi = find(S==uniqueS(ii));
+                j(ii) = numel(intersect(indi,segData{t,i}))./numel(union(indi,segData{t,i}));  
+            end
+            [maxj, maxj_ind] = max(j);
+            if maxj>=0.5
+                segTP = segTP+1;
+                
+            else
+                segFN = segFN+1;
+            end
+            allUniqueS = setdiff(allUniqueS,uniqueS(maxj_ind));
+        end
+        if ~ ismember(i,availableCells)
+            continue;
+        end
         xi = round(xy(1,i));
         yi = round(xy(2,i));
         xx = max(xi-1,1):min(xi+1,W);
         yy = max(yi-1,1):min(yi+1,H);
         s = S(yy,xx);
-        
-        
+        ms = mode(s(:));
+        mid = trackid(label==ms);
+        if isempty(mid)
+            mid = 0;
+        end
         if t<=Frame_Num
-            Match(i,t) = mode(s(:));
+            Match(i,t) =mid;
             %AutoGL(manualTrack.cell_id(i),t) = mean(I(S(:)== Match(manualTrack.cell_id(i),t)));
             %AutoVar(manualTrack.cell_id(i),t)= var(I(S(:)== Match(manualTrack.cell_id(i),t)));
         end
@@ -67,7 +105,14 @@ for t = 1:Data.Frame_Num
         GTgl(i,t)=mean(Ic(:));
         GTvar(i,t)=var(Ic(:));
     end
-   
+    if segFlag
+    segFP = segFP + numel(allUniqueS);
+    fprintf('TP: %f\n FP:%f\n FN:%f\n',segTP,segFP,segFN);
+    segPercision = segTP./(segTP+segFP);
+    segRecall = segTP./(segTP+segFN);
+    segFMeasure = 2*segPercision*segRecall./(segPercision+segRecall);
+    fprintf('Percision: %f\n Recall:%f\n F-Measure:%f\n',segPercision,segRecall,segFMeasure);
+    end
     %cents = sub2ind(size(S),manualTrack.centroid_col(manualTrack.timepoint==t),manualTrack.centroid_row(manualTrack.timepoint==t));
     %Match(manualTrack.cell_id(manualTrack.timepoint==t),t)=S(cents);
     %%
@@ -75,11 +120,11 @@ end
 MatchOrig = Match;
 
 %%
-for l = numel(Link):-1:1
-    for m = 1:numel(Link(l).Children)
-      Match(Match== Link(l).Children(m)) = Link(l).Mother;
-    end
-end
+%for l = numel(Link):-1:1
+%    for m = 1:numel(Link(l).Children)
+%      Match(Match== Link(l).Children(m)) = Link(l).Mother;
+%    end
+%end
 %%
 varargout{3} = Match; 
 varargout{4} = MatchOrig;
@@ -127,10 +172,10 @@ pathlength = sum(~isnan(xyt(1,:,:)),3);
 
 figure; 
 histBins = 1:5:(max(pathlength));
-[pathLengthHist,histBinLoc]=histc(pathlength(pathlength>0),[histBins-2.5,inf]);
+[pathLengthHist,histBinLoc]=histc(pathlength(pathlength>1),[histBins-2.5,inf]);
 
 pathLengthHist = pathLengthHist(1:end-1);
-Lvalid = L(pathlength>0,end);
+Lvalid = L(pathlength>1,end);
 trackErrByLength = zeros(size(pathLengthHist));
 
 for hb = unique(histBinLoc)
@@ -141,13 +186,13 @@ end
 bar(histBins,pathLengthHist,1); hold on;
 bar(histBins,trackErrByLength,0.8,'r'); hold off;
 legend('Manual Track','Error')
-xlabel('path lengths'); ylabel('freq'); title(sprintf('%s: Path Lebgths of Manual Tracks & Errors',Name))
+xlabel('path lengths'); ylabel('freq'); title(sprintf('%s: Path Lengths of Manual Tracks & Errors\n %3.2f%% (%d/%d) Accuracy',Name,100-sum(trackErrByLength)./sum(pathLengthHist)*100,sum(trackErrByLength),sum(pathLengthHist)),'Fontsize',17.6,'fontweight','bold')
 %%
 errPerFrame = sum(diffM~=0&~isnan(diffM),1);
 cellNum = sum(~isnan(diffM),1);
 figure; bar(cellNum); hold on; bar(errPerFrame,'r'); hold off;
 legend('Manual Track','Error')
-xlabel('frame #'); ylabel('freq'); title(sprintf('%s:Pairwise Manual Tracks & Errors: %d erros out of %d',Name,sum(errPerFrame),sum(cellNum)))
+xlabel('frame #'); ylabel('freq'); title(sprintf('%s:Pairwise Manual Tracks & Errors:\n %3.2f%% (%d/%d) Accuracy ',Name,100-sum(errPerFrame)./sum(cellNum)*100,sum(errPerFrame),sum(cellNum)),'Fontsize',17.6,'fontweight','bold')
 
 
 %%
@@ -209,15 +254,17 @@ end
     fprintf('Sister Link Accuracy: %0.2f\n',sum(correctLinks(:)>0)./sum(correctLinks(:)>=0)*100)
 figure; bar(correctLinksAll(:,2)); hold on; bar(correctLinksAll(:,2)-correctLinksAll(:,1),'r'); hold off;
 legend('Manual Link','Error')
-xlabel('frame #'); ylabel('freq'); title(sprintf('%s:Mitosis Links & Errors: %d erros out of %d',Name,sum(correctLinksAll(:,2))-sum(correctLinksAll(:,1)),sum(correctLinksAll(:,2))))
+xlabel('frame #'); ylabel('freq'); title(sprintf('%s:Mitosis Links & Errors:\n %3.2f%% (%d/%d) Accuracy',Name,100-100*(sum(correctLinksAll(:,2))-sum(correctLinksAll(:,1)))./sum(correctLinksAll(:,2)),sum(correctLinksAll(:,2))-sum(correctLinksAll(:,1)),sum(correctLinksAll(:,2))),'Fontsize',17.6,'fontweight','bold')
 
 %%
 %%
 return
 %%
+%{
 visPath = fullfile(resPath,'..','Visualize');
 visExp = strrep(resExp,'Seg','Vis');
 visData = Load_Data(visPath,resExt,visExp);
+%}
 %%
 [cc,tt] = find(diffM~=0&~isnan(diffM))
 ind = 0

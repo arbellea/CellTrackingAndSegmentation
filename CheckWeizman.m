@@ -1,4 +1,4 @@
-function [varargout]=CheckWeizman(cellData,LinkData,data_path,extention,expr,resPath,resExt,resExp,Name)
+function [varargout]=CheckWeizman(cellData,LinkData,segData,data_path,extention,expr,resPath,resExt,resExp,Name)
 if ~exist('Name','var')||isempty(Name)||~ischar(Name)
     Name = '';
 end
@@ -27,6 +27,10 @@ maxIDAuto = max(S(:));
 xyt = shiftdim(cellData,1);
 xyt(:,squeeze(xyt(1,:,:))<b | squeeze(xyt(1,:,:)>(W-b))) = nan;
 xyt(:,squeeze(xyt(2,:,:))<b | squeeze(xyt(2,:,:)>(H-b))) = nan;
+segTP = 0;
+segFP = 0;
+segFN = 0;
+
 for t = 1:Data.Frame_Num
     %%
      I = double(imread(Data.Frame_name{t}));
@@ -43,8 +47,35 @@ for t = 1:Data.Frame_Num
     end
    
     sizeS = size(I);
+    allUniqueS = unique(S(S>0));
+    manSeg = zeros(size(I));
     
-    for i = availableCells
+    for c = 1:size(segData,2)
+        manSeg(segData{t,c}) = c;
+    end
+    segFlag = false;
+    for i = 1:size(segData,2)
+        if ~isempty(segData{t,i})
+            segFlag = true;
+            uniqueS = unique(S(segData{t,i}))';
+            uniqueS = setdiff(uniqueS,0);
+            j = zeros(1:numel(uniqueS));
+            for ii = 1:numel(uniqueS)
+                indi = find(S==uniqueS(ii));
+                j(ii) = numel(intersect(indi,segData{t,i}))./numel(union(indi,segData{t,i}));  
+            end
+            [maxj, maxj_ind] = max(j);
+            if maxj>=0.5
+                segTP = segTP+1;
+                
+            else
+                segFN = segFN+1;
+            end
+            allUniqueS = setdiff(allUniqueS,uniqueS(maxj_ind));
+        end
+        if ~ ismember(i,availableCells)
+            continue;
+        end
         xi = round(xy(1,i));
         yi = round(xy(2,i));
         xx = max(xi-1,1):min(xi+1,W);
@@ -61,7 +92,14 @@ for t = 1:Data.Frame_Num
         GTgl(i,t)=mean(Ic(:));
         GTvar(i,t)=var(Ic(:));
     end
-   
+    if segFlag
+    segFP = segFP + numel(allUniqueS);
+    fprintf('TP: %f\n FP:%f\n FN:%f\n',segTP,segFP,segFN);
+    segPercision = segTP./(segTP+segFP);
+    segRecall = segTP./(segTP+segFN);
+    segFMeasure = 2*segPercision*segRecall./(segPercision+segRecall);
+    fprintf('Percision: %f\n Recall:%f\n F-Measure:%f\n',segPercision,segRecall,segFMeasure);
+    end
     %cents = sub2ind(size(S),manualTrack.centroid_col(manualTrack.timepoint==t),manualTrack.centroid_row(manualTrack.timepoint==t));
     %Match(manualTrack.cell_id(manualTrack.timepoint==t),t)=S(cents);
     %%
@@ -135,13 +173,13 @@ end
 bar(histBins,pathLengthHist,1); hold on;
 bar(histBins,trackErrByLength,0.8,'r'); hold off;
 legend('Manual Track','Error')
-xlabel('path lengths'); ylabel('freq'); title(sprintf('%s: Path Lebgths of Manual Tracks & Errors, %3.2f %% Accuracy',Name,sum(trackErrByLength)./sum(pathLengthHist)))
+xlabel('path lengths'); ylabel('freq'); title(sprintf('%s: Path Lebgths of Manual Tracks & Errors:\n %3.2f%% (%d/%d) Accuracy',Name,100-100*sum(trackErrByLength)./sum(pathLengthHist),sum(trackErrByLength),sum(pathLengthHist)))
 %%
 errPerFrame = sum(diffM~=0&~isnan(diffM),1);
 cellNum = sum(~isnan(diffM),1);
 figure; bar(cellNum); hold on; bar(errPerFrame,'r'); hold off;
 legend('Manual Track','Error')
-xlabel('frame #'); ylabel('freq'); title(sprintf('%s:Pairwise Manual Tracks & Errors: %d erros out of %d',Name,sum(errPerFrame),sum(cellNum)))
+xlabel('frame #'); ylabel('freq'); title(sprintf('%s:Pairwise Manual Tracks & Errors\n  %3.2f%% (%d/%d) Accuracy',Name,100-100*sum(errPerFrame)./sum(cellNum),sum(errPerFrame),sum(cellNum)))
 
 
 %%
@@ -203,7 +241,7 @@ end
     fprintf('Sister Link Accuracy: %0.2f\n',sum(correctLinks(:)>0)./sum(correctLinks(:)>=0)*100)
 figure; bar(correctLinksAll(:,2)); hold on; bar(correctLinksAll(:,2)-correctLinksAll(:,1),'r'); hold off;
 legend('Manual Link','Error')
-xlabel('frame #'); ylabel('freq'); title(sprintf('%s:Mitosis Links & Errors: %d erros out of %d',Name,sum(correctLinksAll(:,2))-sum(correctLinksAll(:,1)),sum(correctLinksAll(:,2))))
+xlabel('frame #'); ylabel('freq'); title(sprintf('%s:Mitosis Links & Errors:\n  %3.2f%% (%d/%d) Accuracy',Name,100-100*(sum(correctLinksAll(:,2))-sum(correctLinksAll(:,1)))./sum(correctLinksAll(:,2)),sum(correctLinksAll(:,2))-sum(correctLinksAll(:,1)),sum(correctLinksAll(:,2))))
 
 %%
 %%

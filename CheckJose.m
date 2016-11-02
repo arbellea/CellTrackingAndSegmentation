@@ -1,4 +1,4 @@
-function [varargout]=CheckJose(txtfilePath,data_path,extention,expr,resPath,resExt,resExp,Name)
+function [varargout]=CheckJose(txtfilePath,segData,data_path,extention,expr,resPath,resExt,resExp,Name)
 if ~exist('Name','var')||isempty(Name)||~ischar(Name)
     Name = '';
 end
@@ -137,6 +137,9 @@ S = imread(ResData.Frame_name{end});
 maxIDAuto = max(S(:));
 AutoGL2 = nan(maxIDAuto,min(max(manualTrack.timepoint),ResData.Frame_Num));
 AutoVar2 = nan(max(manualTrack.cell_id),min(max(manualTrack.timepoint),ResData.Frame_Num));
+segTP = 0;
+segFP = 0;
+segFN = 0;
 
 for t = 1:Data.Frame_Num
     %%
@@ -148,10 +151,45 @@ for t = 1:Data.Frame_Num
      %   
      %   AutoVar2(s,t) = var(I(S(:)==s));
      %end
-    end
+    
    
     sizeS = size(I);
+    allUniqueS = unique(S(S>0));
+    manSeg = zeros(size(I));
+    for c = 1:size(segData,2)
+        manSeg(segData{t,c}) = c;
+    end
+    segFlag = false;
+    for i = 1:size(segData,2)
+        if ~isempty(segData{t,i})
+            segFlag = true;
+            uniqueS = unique(S(segData{t,i}))';
+            uniqueS = setdiff(uniqueS,0);
+            j = zeros(1,numel(uniqueS));
+            for ii = 1:numel(uniqueS)
+                indi = find(S==uniqueS(ii));
+                j(ii) = numel(intersect(indi,segData{t,i}))./numel(union(indi,segData{t,i}));  
+            end
+            [maxj, maxj_ind] = max(j);
+            if maxj>=0.5
+                segTP = segTP+1;
+                
+            else
+                segFN = segFN+1;
+            end
+            allUniqueS = setdiff(allUniqueS,uniqueS(maxj_ind));
+        end
+    end
+    if segFlag
+        segFP = segFP + numel(allUniqueS);
+        fprintf('TP: %f\n FP:%f\n FN:%f\n',segTP,segFP,segFN);
+        segPercision = segTP./(segTP+segFP);
+        segRecall = segTP./(segTP+segFN);
+        segFMeasure = 2*segPercision*segRecall./(segPercision+segRecall);
+        fprintf('Percision: %f\n Recall:%f\n F-Measure:%f\n',segPercision,segRecall,segFMeasure);
+    end  
     
+    end
     for i = find(manualTrack.timepoint==t)'
         col = manualTrack.centroid_col(i) + [-1,-1,-1,0,0,0,1,1,1]';
         row = manualTrack.centroid_row(i) + [-1,0,1,-1,0,1,-1,0,1]';

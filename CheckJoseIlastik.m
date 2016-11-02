@@ -1,4 +1,4 @@
-function [varargout]=CheckJoseIlastik(txtfilePath,data_path,extention,expr,resPath,Name)
+function [varargout]=CheckJoseIlastik(txtfilePath,data_path,extention,expr,resPath,csvPath,Name)
 if ~exist('Name','var')||isempty(Name)||~ischar(Name)
     Name = '';
 end
@@ -9,6 +9,7 @@ varargout{1} = manualTrackOrig;
 %%
 %load(fullfile(resPath,'..','Link.mat'));
 %%
+csvData = readtable(csvPath);
 Data = Load_Data(data_path,extention,expr) ;
 fileinfo = hdf5info(resPath);
 ResData = hdf5read(fileinfo.GroupHierarchy.Datasets(1));
@@ -140,6 +141,8 @@ AutoVar2 = nan(max(manualTrack.cell_id),min(max(manualTrack.timepoint),FrameNum)
 
 for t = 1:Data.Frame_Num
     %%
+     label = csvData.labelimage_oid(csvData.timestep==(t-1));
+    trackid = csvData.lineage_id(csvData.timestep==(t-1));
      I = double(imread(Data.Frame_name{t}));
     if t<=FrameNum
     S = ResData(:,:,t);

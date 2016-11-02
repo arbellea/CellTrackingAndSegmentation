@@ -28,7 +28,7 @@ CheckJose(txtfilePath,data_path,extention,expr,resPath,resExt,resExp,Name);
 %% s102
 HOME = getenv('HOME');
 txtfilePath = fullfile(HOME,'Input','Galit_Lahav','Jose3','M20150416_IR00GY_tracking','M20150416_IR00GY_s102_tracking_v2_longTraces_consolidated.txt') ;
-
+load(fullfile(HOME,'ManualTrackingAndSeg','Lahav','s102','SaveDataWithSeg.mat'))
 %D:\DataFromJose\M20150416_p21_20X
 data_path = fullfile('D:','DataFromJose','M20150416_p21_20X');
 extention = '*.TIF';
@@ -43,12 +43,14 @@ resPath = fullfile(HOME,'Outputs','Results_LahavLab-Jose3_20X_s102_July10_CheckP
 %resPath = fullfile(HOME,'Outputs','Results_LahavLab-Jose3_20X_s102_July12_CheckPoints','Results'); Name = 's102-Regularized';
 %resPath = fullfile(HOME,'Outputs','Results_LahavLab-Jose3_20X_s102_July17_CheckPoints','Results'); Name = 's102-Regularized';
 resPath = fullfile(HOME,'Outputs','Results_LahavLab-Jose3_20X_s102_July20_CheckPoints','Results'); Name = 's102-Regularized';
-resPath = fullfile(HOME,'Outputs','Results_LahavLab-Jose3_20X_s102_July24_CheckPoints','Results'); Name = 's102-Regularized';
+%resPath = fullfile(HOME,'Outputs','Results_LahavLab-Jose3_20X_s102_July24_CheckPoints','Results'); Name = 's102-Regularized';
 
 resExt = '*.TIF';
 resExp = 'Seg_M20150416_w2CFP_s102_t(\d+).TIF';
 
-CheckJose(txtfilePath,data_path,extention,expr,resPath,resExt,resExp,Name);
+CheckWeizmanIlastik(cellData,LinkData,segData,data_path,extention,expr,resPath,csvPath,Name)
+
+CheckJose(txtfilePath,segData,data_path,extention,expr,resPath,resExt,resExp,Name);
 %% s103
 HOME = getenv('HOME');
 txtfilePath = fullfile(HOME,'Input','Galit_Lahav','Jose3','M20150416_IR00GY_tracking','M20150416_IR00GY_s103_tracking.txt') ;
@@ -66,7 +68,7 @@ resExt = '*.TIF';
 resExp = 'Seg_M20150416_w2CFP_s103_t(\d+).TIF';
 
 
-CheckJose(txtfilePath,data_path,extention,expr,resPath,resExt,resExp,Name);
+CheckJose(txtfilePath,,segData,data_path,extention,expr,resPath,resExt,resExp,Name);
 %% s104
 
 txtfilePath = fullfile(HOME,'Input','Galit_Lahav','Jose3','M20150416_IR00GY_tracking','M20150416_IR00GY_s104_tracking.txt') ;
