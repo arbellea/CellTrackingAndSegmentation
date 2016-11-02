@@ -22,7 +22,7 @@ function varargout = TrackingUtility(varargin)
 
 % Edit the above text to modify the response to help TrackingUtility
 
-% Last Modified by GUIDE v2.5 28-Feb-2016 18:54:02
+% Last Modified by GUIDE v2.5 09-Oct-2016 16:01:55
 
 % Begin initialization code - DO NOT EDIT
 
@@ -154,7 +154,7 @@ contourData = cell(imageData.Frame_Num,1);
 maxID = 1;
 strID = {'1'};
 strColorID = {'1'};
-prc = [0.5,99.5];
+prc = [0.1,99.9];
 [saveFileLocation,savePath] = uiputfile('*.mat','Save File Location','SaveData.mat');
 if savePath==0
     return;
@@ -225,6 +225,9 @@ sI = size(I);
 % %set(handles.axMain,'position',mainAxPos);
 % %set(handles.sliderMain,'position',sliderPos);
 % %set(gcf,'position',figPos);
+if ~isfield(userData,'prc');
+userData.prc = [0.1,99.9];
+end
 p = prctile(double(I(:)),userData.prc);
 him = imshow(I,p,'Parent',handles.axMain);
 handles.currentImageNumber = 1;
@@ -758,6 +761,7 @@ set(handles.axMain,'units','pixels');
 figPos = get(gcf,'position');
 mainAxPos = get(handles.axMain,'position');
 handles.axZeroPoint = [figPos(1:2),0 0]+mainAxPos+[0,mainAxPos(4),0 0];
+set(handles.txtSegDone,'units','normalized')
 set(gcf,'units','normalized');
 set(handles.axMain,'units','normalized');
 set(handles.sliderMain,'units','normalized');
@@ -1086,6 +1090,7 @@ userData = get(gcf,'userdata');
 currentImageNumber = get(handles.pmFrameNum,'value');
 cellID = get(handles.pmCellID,'value');
 if tglState
+    set(handles.txtSegDone,'visible','on');
     TrackCell([],[],'off');
     set(handles.pbDrawClear,'visible','on');
     plotSegImage(handles,userData,currentImageNumber,cellID);
@@ -1130,6 +1135,7 @@ if tglState
     end
     %}
 else
+    set(handles.txtSegDone,'visible','off');
     set(handles.pbDrawClear,'visible','off');
     trackingData = userData.cellData(:,:,cellID);
     zoomAx.xlim = get(handles.axMain,'xLim'); zoomAx.ylim = get(handles.axMain,'yLim');
@@ -1245,11 +1251,32 @@ if ~isempty(text_loc)&&get(handles.chkShowIDs,'value')
     end
 end
 imshow(IShow,'parent',handles.axMain);
+cellCenter = userData.cellData(currentImageNumber,:,cellID);
+if any(isnan(cellCenter))
+    cellCenter = [0 0];
+end
+Newxlim = zoomAx.xlim - (zoomAx.xlim(2)-zoomAx.xlim(1))./2 - zoomAx.xlim(1)  + cellCenter(1);
+if Newxlim(1)<1
+    Newxlim = Newxlim-Newxlim(1)+1;
+elseif Newxlim(2)>size(IShow,2)
+    Newxlim = Newxlim-Newxlim(2)+size(IShow,2);
+end
+Newylim = zoomAx.ylim - (zoomAx.ylim(2)-zoomAx.ylim(1))./2 - zoomAx.ylim(1) + cellCenter(2);
+if Newylim(1)<1
+    Newylim = Newylim-Newylim(1)+1;
+elseif Newylim(2)>size(IShow,1)
+    Newylim = Newylim-Newylim(2)+size(IShow,1);
+end
+zoomAx.ylim = Newylim;
+zoomAx.xlim = Newxlim;
 set(handles.axMain,'xlim',zoomAx.xlim,'ylim',zoomAx.ylim)
 hold on;
 scatter(userData.cellData(currentImageNumber,1,:),userData.cellData(currentImageNumber,2,:),'*r','linewidth',2);
 scatter(userData.cellData(currentImageNumber,1,cellID),userData.cellData(currentImageNumber,2,cellID),'*g','linewidth',2);
 hold off;
+ 
+donecells = sum(~cellfun(@isempty,userData.contourData(currentImageNumber,:)));
+set(handles.txtSegDone,'string',sprintf('Segmentation Done: %d out of %d',donecells,numel(validCells)+1));
 
 function freezeGUI(status)
 
@@ -1312,3 +1339,157 @@ end
 set(hObject,'enable','off');
 drawnow update;
 set(hObject,'enable','on');
+
+
+% --- Executes on button press in pbImportCSV.
+function pbImportCSV_Callback(hObject, eventdata, handles)
+% hObject    handle to pbImportCSV (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+userData = get(gcf,'userdata');
+[fname,fpath,~] = uigetfile('*.*');
+txtfilePath = fullfile(fpath,fname);
+
+manualTrack = readtable(txtfilePath,'Delimiter','\t','Format','%f%f%f%f%f%f%f');
+%%
+b = 10;
+H = userData.imageData.Height;
+W = userData.imageData.Width;
+existingCells = manualTrack.cell_id(manualTrack.timepoint==1);
+existingSisters = [];
+LinkMat = [];
+start = [];
+stop = [];
+maxID = max(manualTrack.cell_id);
+LinkStruct = struct([]);
+Link2 = struct([]);
+%%
+for t = 2:max(manualTrack.timepoint)
+    manualTrack= manualTrack(manualTrack.cell_id>0,:);
+    centroids = table2array(manualTrack(manualTrack.timepoint==t,2:3));
+    currentCells =  manualTrack.cell_id(manualTrack.timepoint==t);
+    futureCells =  manualTrack.cell_id(manualTrack.timepoint>t);
+    [~,ia,ic] = unique(centroids,'rows');
+    h = hist(ic,1:numel(ia));
+    sisters = [];
+    div = manualTrack.division(manualTrack.timepoint==t);
+    for i = find(h>1)
+        sisPair = currentCells(ic==i)';
+        old = ismember(sisPair,existingCells);
+        if all(old)
+            continue;
+        end
+        currentCells(ismember(currentCells,sisPair(~old)))=0;
+        sisters = cat(1,sisters,sisPair);
+        div(ic==i) = 0;
+    end
+    sisters = cat(1,sisters,[currentCells(logical(div)),-currentCells(logical(div))]);
+    if ~isempty(existingSisters)&&~isempty(sisters)
+        
+    splitSis = setdiff(existingSisters,sisters,'rows');
+    elseif ~isempty(existingSisters)&&isempty(sisters)
+        splitSis = existingSisters;
+    else
+        splitSis = [];
+    end
+    for i = 1:size(splitSis,1)
+        
+        splitSisi = splitSis(i,:);
+        if splitSisi(2)<0
+            motherCell = splitSisi(1);
+            daughterCell = splitSisi(2);
+        else
+        existSis = ismember(splitSisi,existingCells);
+        if all(~existSis)
+            continue;
+        end
+        motherCell = splitSisi(existSis);
+        daughterCell = splitSisi(~existSis);
+        end
+        maxID = maxID +1;
+        futureCells(futureCells==motherCell) = maxID;
+        currentCells(currentCells==motherCell) = maxID;
+        motherCentroid = table2array(manualTrack(manualTrack.timepoint==(t-1)&manualTrack.cell_id==motherCell,2:3));
+        daughter1Centroid = centroids(currentCells==maxID,:);
+        
+        if isempty(daughter1Centroid)
+           maxID = maxID-1;
+           stop = cat(1,stop,motherCell);
+           continue
+        end
+        LinkStruct(end+1).t = t;
+        LinkStruct(end).Mother.ID = motherCell;
+        LinkStruct(end).Mother.Centroid = motherCentroid;
+        LinkStruct(end).Daughter(1).ID = maxID;
+        LinkStruct(end).Daughter(1).Centroid = daughter1Centroid;
+        
+        if daughterCell<0
+            daughter2Centroid = [-1,-1];
+        else
+             daughter2Centroid = centroids(currentCells==daughterCell,:);
+             if isempty(daughter2Centroid)
+                 daughter2Centroid = [-1, -1];
+             end
+             LinkStruct(end).Daughter(2).ID = daughterCell;
+             LinkStruct(end).Daughter(2).Centroid = daughter1Centroid;
+        end
+        
+        LinkMat = cat(1,LinkMat,[t,motherCell,motherCentroid,maxID,daughter1Centroid,daughterCell,daughter2Centroid]); % 
+        Link2(end+1).Mother = motherCell;
+        Link2(end).Children = [maxID,daughterCell];
+        Link2(end).Time = t;
+        
+        start = cat(1,start,maxID,daughterCell(daughterCell>0));
+        stop = cat(1,stop,motherCell);
+    end
+     for edgeIds =  manualTrack.cell_id(manualTrack.timepoint==t&...
+            (manualTrack.centroid_col<b|manualTrack.centroid_row<b|manualTrack.centroid_col>(-b+H)...
+            |manualTrack.centroid_row>(-b+W))&manualTrack.cell_id>0)'
+            futureCells(futureCells==edgeIds) = 0;
+           
+    end
+    existingCells = union(existingCells,currentCells(currentCells>0));
+    manualTrack.cell_id(manualTrack.timepoint==t) = currentCells;
+    manualTrack.cell_id(manualTrack.timepoint>t) = futureCells;
+    if ~isempty(existingSisters)&&~isempty(sisters)
+        existingSisters = union(existingSisters,sisters,'rows');
+    elseif isempty(existingSisters)&&~isempty(sisters)
+        existingSisters = sisters;
+    end
+    if ~isempty(existingSisters)&&~isempty(splitSis)
+        existingSisters = setdiff(existingSisters,splitSis,'rows');    
+    end
+        
+        
+end
+manualTrack = manualTrack(manualTrack.cell_id>0,:);
+%%
+manualTrack = manualTrack(manualTrack.timepoint<=userData.imageData.Frame_Num,:);
+cellData = nan(userData.imageData.Frame_Num,2,max(manualTrack.cell_id));
+idxr = sub2ind(size(cellData),manualTrack.timepoint,ones(size(manualTrack.timepoint)),manualTrack.cell_id);
+idxc = sub2ind(size(cellData),manualTrack.timepoint,2*ones(size(manualTrack.timepoint)),manualTrack.cell_id);
+cellData(idxr) = manualTrack.centroid_row;
+cellData(idxc) = manualTrack.centroid_col;
+userData.cellData = cellData;
+userData.Link = Link2;
+
+%%
+OrigID = [1:size(cellData,3)]';
+fullID = cellstr(num2str([1:size(cellData,3)]'));
+for i = 1:numel(Link2)
+ for j = 1:numel(Link2(i).Children)
+     childID = Link2(i).Children(j);
+     if childID<0
+         continue
+     end
+     fullID{OrigID==childID} =  sprintf('%s.%d',fullID{OrigID==Link2(i).Mother},j);
+ end
+end
+userData.strID = fullID;
+set(handles.pmCellID,'string',fullID);
+userData.segData = cell(userData.imageData.Frame_Num,size(cellData,3));
+userData.contourData = cell(userData.imageData.Frame_Num,size(cellData,3));
+userData.maxID = max(manualTrack.cell_id);
+userData.strID = fullID;
+userData.strColorID = fullID;
+set(gcf,'userdata',userData)
