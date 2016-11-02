@@ -1,4 +1,5 @@
 function main(txtFileName)
+rng(1)
 dbclear if caught error
 myCluster = parcluster('local');
 myCluster.NumWorkers

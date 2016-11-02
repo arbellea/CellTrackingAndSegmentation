@@ -477,15 +477,22 @@ try
         %I = I(11:end-10,11:end-10);
         %L = L(11:end-10,11:end-10);
         tKDE = tic;
+        if ~exist('DensCellPoints','var')&&~exist('DensBGPoints','var')
         DensCellPoints =[];
         DensBGPoints = [];
         DensEdgePoints = [];
-        if mod(t,10)==0&&exist('DensCellPoints','var')&&exist('DensBGPoints','var')
+        end
+        
+        BG_est_refresh = Params.parameters.BG_est_refresh;
+        if mod(t,BG_est_refresh)==0&&exist('DensCellPoints','var')&&exist('DensBGPoints','var')
             LCells = L>0;
             %LEdges = logical(imdilate(LCells,ones(3))- LCells);
             LBG = ~(LCells);
+            
+            
             DensCellPoints = cat(1,DensCellPoints,I(LCells&I<Tracking.maxgray));
             DensBGPoints = cat(1,DensBGPoints,I(LBG));
+            
             %DensEdgePoints = cat(1,DensEdgePoints,I(LEdges));
             if isfield(Params.parameters,'useGMM')&&Params.parameters.useGMM
                 Kbg = Params.parameters.Kbg;
@@ -497,6 +504,40 @@ try
                 gmmFG = gmdistribution(gmmFG.mu,gmmFG.Sigma,ones(1,Kfg)./Kfg);
                 Tracking.dens_BG = pdf(gmmBG,Tracking.dens_x');
                 Tracking.dens_cells = pdf(gmmFG,Tracking.dens_x');
+                if isfield(Params.parameters,'useLocalGL')&&Params.parameters.useLocalGL
+                    
+                    
+                    Kbg = Params.parameters.Kbg;
+                    Kfg = Params.parameters.Kfg;
+                    gmmOpts = statset('MaxIter',500);
+                    for n = 1:numel(Kalmans)
+                        if Kalmans(n).enabled
+                            if ~isfield(Kalmans(n),'DensCellPoints')
+                                Kalmans(n).DensCellPoints =[];
+                                Kalmans(n).DensBGPoints =[];
+                            end
+                            cent = Kalmans(n).state(2:-1:1);
+                            L_cropped = CropImage(L,cent,Params.parameters.patchSize,Params.parameters.patchSize);
+                            I_cropped = CropImage(I,cent,Params.parameters.patchSize,Params.parameters.patchSize);
+                            Kalmans(n).DensCellPoints = cat(1,Kalmans(n).DensCellPoints,I_cropped(L_cropped(:)>0));
+                            Kalmans(n).DensBGPoints = cat(1,Kalmans(n).DensBGPoints,I_cropped(L_cropped(:)==0));
+                            if isempty(Kalmans(n).DensBGPoints(Kalmans(n).DensBGPoints>0))||isempty(Kalmans(n).DensCellPoints(Kalmans(n).DensCellPoints>0))
+                             Kalmans(n).dens_BG  = Tracking.dens_BG;
+                             Kalmans(n).dens_cells = Tracking.dens_cells;
+                            else
+                            gmmBG = fitgmdist(Kalmans(n).DensBGPoints(Kalmans(n).DensBGPoints>0),Kbg,'Options',gmmOpts);
+                            gmmFG = fitgmdist(Kalmans(n).DensCellPoints(Kalmans(n).DensCellPoints>0),Kfg,'Options',gmmOpts);
+                            gmmBG = gmdistribution(gmmBG.mu,gmmBG.Sigma,ones(1,Kbg)./Kbg);
+                            gmmFG = gmdistribution(gmmFG.mu,gmmFG.Sigma,ones(1,Kfg)./Kfg);
+                            Kalmans(n).dens_BG = pdf(gmmBG,Tracking.dens_x');
+                            Kalmans(n).dens_cells = pdf(gmmFG,Tracking.dens_x');
+                            end
+                            Kalmans(n).DensCellPoints =[];
+                            Kalmans(n).DensBGPoints =[];
+                        end
+                    end
+                end
+                
             else
                 u = (4/(3*min(numel(DensBGPoints)+numel(DensCellPoints))))^(1./5)*max(std(DensCellPoints),std(DensBGPoints));
                 dens_cells = FastKDE(DensCellPoints,Tracking.dens_x,u);
@@ -520,13 +561,25 @@ try
                 Tracking.priorCell = 1-Tracking.priorBG;
                 
             end
-        elseif mod(t,1)>=0
-            LCells = L>0;
-            LEdges = logical(imdilate(LCells,ones(3))- LCells);
-            LBG = ~(LCells|LEdges);
-            DensCellPoints = I(LCells);
-            DensBGPoints = I(LBG);
-            %DensEdgePoints = I(LEdges);
+        else
+            if isfield(Params.parameters,'useLocalGL')&&Params.parameters.useLocalGL
+                for n = 1:numel(Kalmans)
+                if Kalmans(n).enabled
+                    if ~isfield(Kalmans(n),'DensCellPoints')
+                        Kalmans(n).DensCellPoints =[];
+                        Kalmans(n).DensBGPoints =[];
+                    end
+                    cent = Kalmans(n).state(2:-1:1);
+                    L_cropped = CropImage(L,cent,Params.parameters.patchSize,Params.parameters.patchSize);
+                    I_cropped = CropImage(L,cent,Params.parameters.patchSize,Params.parameters.patchSize);
+                    Kalmans(n).DensCellPoints = cat(1,Kalmans(n).DensCellPoints,I_cropped(L_cropped(:)>0));
+                    Kalmans(n).DensBGPoints = cat(1,Kalmans(n).DensBGPoints,I_cropped(L_cropped(:)==0));
+                end
+                end
+            end
+                DensCellPoints = cat(1,DensCellPoints,I(LCells&I<Tracking.maxgray));
+                DensBGPoints = cat(1,DensBGPoints,I(LBG));
+            
         end
         timeKDE = toc(tKDE);
         

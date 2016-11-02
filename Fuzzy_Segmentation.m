@@ -1,7 +1,7 @@
 function [L,L_New_Cell,Kalmans,z_pred,z_pred_orig,cog_diff,DEBUG] = Fuzzy_Segmentation(Tracking,Kalmans,I,I_prev,params,save_debug) %#ok<INUSD>
 [Height,Width]=size(I);
 [X,Y] = meshgrid(1:Width,1:Height);
-conserveMemory = false;
+conserveMemory = true;
 global counter
 XY = [Y(:),X(:)]';
 
@@ -70,7 +70,7 @@ end
 try
     PBG = Tracking.dens_BG(round(I)+1);
     P_Cell = Tracking.dens_cells(round(I)+1);
-   figure(8); plot(Tracking.dens_x,1-Tracking.dens_cells./(Tracking.dens_cells+Tracking.dens_BG)); pause(0.1);
+   %figure(8); plot(Tracking.dens_x,1-Tracking.dens_cells./(Tracking.dens_cells+Tracking.dens_BG)); pause(0.1);
    % alpha = (sum(Tracking.L(:)>0)./numel(Tracking.L))
     nBG = alpha*P_Cell./(alpha*(P_Cell)+(1-alpha)*PBG);
     
@@ -122,6 +122,13 @@ try
   %  I = imfilter(double(I), hg, 'replicate');
     gradI = calc_Grad_I(I);
     invG = max(1./(1+(gradI./(k*std(gradI(:)))).^q),0.01);
+    localGray = false;
+    
+    if isfield(enKalmans,'dens_cells')
+        pGrayLocal = arrayfun(@(x) alpha*x.dens_cells./((1-alpha)*x.dens_BG+alpha*x.dens_cells),enKalmans,'UniformOutput',false);
+        localGray = true;
+    end
+    
     if conserveMemory
         clear gradI;
     end
@@ -216,6 +223,9 @@ try
             cell_area = cell_area(valid);
             enKalmans = enKalmans(valid);
             P_pred = P_pred(valid);
+            if localGray
+            pGrayLocal = pGrayLocal(valid);
+            end
             %Pi = Pi(valid);
             g = g(valid);
             cellSize = cellSize(valid);
@@ -251,10 +261,15 @@ try
                 DEBUG{itr}.Phi_cropped = Phi_cropped;
             end
             invG_cropped = cellfun(@(m) CropImage(invG,m,patchSize,patchSize),mu,'uniformoutput',0);
-            nBG_cropped = cellfun(@(m) CropImage(nBG,m,patchSize,patchSize),mu,'uniformoutput',0);
-            %Pi_cropped = cellfun(@(m,p) CropImage(p,m,patchSize,patchSize),mu,Pi,'uniformoutput',0);
-    
             I_cropped = cellfun(@(m) CropImage(I,m,patchSize,patchSize),mu,'uniformoutput',0);
+            if localGray
+                nBG_cropped = cellfun(@(p,Ic) p(round(Ic)+1),pGrayLocal,I_cropped,'uniformoutput',0);
+            else
+                nBG_cropped = cellfun(@(m) CropImage(nBG,m,patchSize,patchSize),mu,'uniformoutput',0);
+            end
+            %Pi_cropped = cellfun(@(m,p) CropImage(p,m,patchSize,patchSize),mu,Pi,'uniformoutput',0);
+            
+            
             PGray_cropped = cellfun(@(gg,i,csize,area)  reshape(sqrt(2*pi)*csize./area*normpdf(i(:),gg,csize./area),size(i)), g,I_cropped,cellSize,cell_area,'uniformoutput',false);
     
             %nEdge_cropped = cellfun(@(m) CropImage(nEdge,m,patchSize,patchSize),mu,'uniformoutput',0);
@@ -267,7 +282,7 @@ try
             counter = 0;
             mu_cropped = cellfun(@FindMostLiklymuGray,nBG_cropped,invG_cropped,mu_cropped,P_pred,PGray_cropped,'uniformoutput',0);
             if conserveMemory
-                clear PGray_cropped
+                %clear PGray_cropped
             end
             tmp = cellfun(@isempty,mu_cropped);
             if any(tmp)
@@ -347,7 +362,11 @@ try
                 DEBUG{itr}.Phi_cropped = Phi_cropped;
             end
             invG_cropped = cellfun(@(m) CropImage(invG,m,patchSize,patchSize),mu,'uniformoutput',0);
-            nBG_cropped = cellfun(@(m) CropImage(nBG,m,patchSize,patchSize),mu,'uniformoutput',0);
+            if localGray
+                nBG_cropped = cellfun(@(p,Ic) p(round(Ic)+1),pGrayLocal,I_cropped,'uniformoutput',0);
+            else
+                nBG_cropped = cellfun(@(m) CropImage(nBG,m,patchSize,patchSize),mu,'uniformoutput',0);
+            end
             if save_debug
                 DEBUG{itr}.nBG_cropped = nBG_cropped;
             end
@@ -355,6 +374,7 @@ try
             %mu_cropped = cellfun(@(u,phi)FindMuCOM(u.*phi),U_cropped,Phi_cropped,'uniformoutput',0);
             mu_cropped =  cellfun(@(m)CropMu(m,patchSize,patchSize),mu,'uniformoutput',false);
             if itr==2
+                PGray_cropped = cellfun(@(gg,i,csize,area)  reshape(sqrt(2*pi)*csize./area*normpdf(i(:),gg,csize./area),size(i)), g,I_cropped,cellSize,cell_area,'uniformoutput',false);
                 mu_cropped = cellfun(@FindMostLiklymuGray,nBG_cropped,invG_cropped,mu_cropped,P_pred,PGray_cropped,'uniformoutput',0);
             end
                 
@@ -395,13 +415,8 @@ try
             end
             P_cropped_tot = cellfun(@createPTot ,P_cropped,P_cropped_stat,U_cropped,mu_cropped,mu_cropped_stat,'uniformoutput',false);
             
-             if conserveMemory
-                clear D_cropped_stat;
-                clear D_cropped;
-                clear P_cropped;
-                clear P_cropped_stat;
-                clear Phi_cropped;
-                clear Phi_cropped_stat;
+            if conserveMemory
+                
             end
             
             %P_cropped_tot = cellfun(@(phi,d,p,u,m,ms) (p.*u(m(1),m(2))+u(ms(1),ms(2))./(d+1))./(u(m(1),m(2))+u(ms(1),ms(2))),Phi_cropped_stat,D_cropped_stat,P_cropped,U_cropped,mu_cropped,mu_cropped_stat,'uniformoutput',0);
@@ -420,9 +435,14 @@ try
             if conserveMemory
                 clear P_Weighted;
                 clear I_cropped;
-                
-               
+                clear D_cropped_stat;
+                clear D_cropped;
+                clear P_cropped;
+                clear P_cropped_stat;
+                clear Phi_cropped;
+                clear Phi_cropped_stat;
             end
+            
         end
         
         %Pmat = reshape(full(cell2mat(P)),Height,Width,[]);
@@ -465,7 +485,8 @@ try
         mu = cellfun(@(u,phi,phis) XY(:,(nBG(:)>0.5))*(u(nBG(:)>0.5))./max(sum(u(nBG(:)>0.5)),eps),U,Phi_moved,Phi_stat,'UniformOutput',false);
         end
         prev_size = cell_area;
-        cell_area = cellfun(@(u) round(I(:)'*u(:)),U,'uniformoutput',false);
+        cellSize = cellfun(@(u) round(I(:)'*u(:)),U,'uniformoutput',false);
+        cell_area = cellfun(@(u) sum(u(:)),U,'uniformoutput',false);
         [err,err_idx] = max(sqrt(sum((cell2mat(cell_area)-cell2mat(prev_size)).^2,1)));
         if any([cell_area{:}]==0)
             remove_cell = [cell_area{:}]>0;
@@ -482,6 +503,9 @@ try
             Phi_moved = Phi_moved(remove_cell);
             Phi_stat = Phi_stat(remove_cell);
             Phi_norm = Phi_norm(remove_cell);
+            if localGray
+            pGrayLocal = pGrayLocal(remove_cell);
+            end
             %Phi_cropped = Phi_cropped(remove_cell);
             %Phi_cropped_stat = Phi_cropped_stat(remove_cell);
             %gradI_cropped = gradI_cropped(remove_cell);
@@ -624,18 +648,6 @@ function BW = Create_New_Cell_L(BW_Full,Idx)
 BW = zeros(size(BW_Full));
 BW(Idx(:)) = BW_Full(Idx(:));
 %BW = imdilate(BW,ones(3));
-end
-function [Cropped, ind] = CropImage(I,c,h,w,varargin)
-y1 = max(round(c(1)-h/2),1);
-y2 = min(round(c(1)+h/2),size(I,1));
-x1 = max(round(c(2)-w/2),1);
-x2 = min(round(c(2)+w/2),size(I,2));
-
-Cropped = I(y1:y2,x1:x2);
-if nargout>1
-    [X,Y] = meshgrid(x1:x2,y1:y2);
-    ind = sub2ind(size(I),Y(:),X(:));
-end
 end
 
 function Cropped_mu = CropMu(c,h,w) %#ok<*DEFNU>

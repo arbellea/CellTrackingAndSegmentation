@@ -149,6 +149,32 @@ if isfield(Params.parameters,'useGMM')&&Params.parameters.useGMM
     gmmFG = gmdistribution(gmmFG.mu,gmmFG.Sigma,ones(1,Kfg)./Kfg);
     Tracking.dens_BG = pdf(gmmBG,dens_x');
     Tracking.dens_cells = pdf(gmmFG,dens_x');
+     if isfield(Params.parameters,'useLocalGL')&&Params.parameters.useLocalGL
+                    
+                    
+                    Kbg = Params.parameters.Kbg;
+                    Kfg = Params.parameters.Kfg;
+                    gmmOpts = statset('MaxIter',500);
+                    for n = 1:numel(Kalmans)
+                        if Kalmans(n).enabled
+                            if ~isfield(Kalmans(n),'DensCellPoints')
+                                Kalmans(n).DensCellPoints =[];
+                                Kalmans(n).DensBGPoints =[];
+                            end
+                            cent = Kalmans(n).state(2:-1:1);
+                            L_cropped = CropImage(L,cent,Params.parameters.patchSize,Params.parameters.patchSize);
+                            I_cropped = CropImage(I,cent,Params.parameters.patchSize,Params.parameters.patchSize);
+                            Kalmans(n).DensCellPoints = cat(1,Kalmans(n).DensCellPoints,I_cropped(L_cropped(:)>0));
+                            Kalmans(n).DensBGPoints = cat(1,Kalmans(n).DensBGPoints,I_cropped(L_cropped(:)==0));
+                            gmmBG = fitgmdist(Kalmans(n).DensBGPoints(Kalmans(n).DensBGPoints>0),Kbg,'Options',gmmOpts);
+                            gmmFG = fitgmdist(Kalmans(n).DensCellPoints(Kalmans(n).DensCellPoints>0),Kfg,'Options',gmmOpts);
+                            gmmBG = gmdistribution(gmmBG.mu,gmmBG.Sigma,ones(1,Kbg)./Kbg);
+                            gmmFG = gmdistribution(gmmFG.mu,gmmFG.Sigma,ones(1,Kfg)./Kfg);
+                            Kalmans(n).dens_BG = pdf(gmmBG,dens_x');
+                            Kalmans(n).dens_cells = pdf(gmmFG,dens_x');
+                        end
+                    end
+                end
 else
      u = (4/(3*min(numel(DensBGPoints)+numel(DensCellPoints))))^(1./5)*std(cat(1,DensCellPoints,DensBGPoints));
     dens_cells = FastKDE(DensCellPoints,dens_x,u);

@@ -1,5 +1,5 @@
 * General
-Name = 'AlonLab'
+Name = 'AlonLabTEST'
 emailAddress = 'arbellea@post.bgu.ac.il'
 
 * Flags
@@ -12,11 +12,11 @@ LoadCheckPoints = false;
 
 
 * load_data_params
-data_path = fullfile(getenv('HOME'),'Input','Weizmann','calibrate2');
+data_path = fullfile(getenv('HOME'),'..','Cell_Tracking','Input','Weizmann','Input','calibrate2');
 extention = '*.TIF';
 expr = 'calibrate2-P01.(\d+).TIF'
 
-tagged_data_path = fullfile(getenv('HOME'),'Input','Weizmann','calibrate2_segAssaf');
+tagged_data_path = fullfile(getenv('HOME'),'..','Cell_Tracking','Input','Weizmann','Input','calibrate2_segAssaf');
 tagged_extention = '*.tif';
 tagged_expr = 'cell_calibrate2-P01.(\d+).tif'
 
