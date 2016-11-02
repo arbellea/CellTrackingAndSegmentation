@@ -5,3 +5,5 @@
 *.avi
 ParamFiles*.*
 *.log
+*.m~
+ParamFiles/Broad.txt~
