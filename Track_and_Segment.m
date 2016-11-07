@@ -482,7 +482,10 @@ try
         DensBGPoints = [];
         DensEdgePoints = [];
         end
-        
+         LCells = L>0;
+         %LEdges = logical(imdilate(LCells,ones(3))- LCells);
+         LBG = ~(LCells);
+            
         BG_est_refresh = Params.parameters.BG_est_refresh;
         if mod(t,BG_est_refresh)==0&&exist('DensCellPoints','var')&&exist('DensBGPoints','var')
             LCells = L>0;
@@ -571,7 +574,7 @@ try
                     end
                     cent = Kalmans(n).state(2:-1:1);
                     L_cropped = CropImage(L,cent,Params.parameters.patchSize,Params.parameters.patchSize);
-                    I_cropped = CropImage(L,cent,Params.parameters.patchSize,Params.parameters.patchSize);
+                    I_cropped = CropImage(I,cent,Params.parameters.patchSize,Params.parameters.patchSize);
                     Kalmans(n).DensCellPoints = cat(1,Kalmans(n).DensCellPoints,I_cropped(L_cropped(:)>0));
                     Kalmans(n).DensBGPoints = cat(1,Kalmans(n).DensBGPoints,I_cropped(L_cropped(:)==0));
                 end

@@ -1,5 +1,5 @@
 * General
-Name = 'LahavLab-Jose3_20X_s102_July24'
+Name = 'LahavLab-Jose3_20X_s102_Nov_2'
 emailAddress = 'arbellea@post.bgu.ac.il'
 
 * Flags
@@ -7,7 +7,7 @@ WriteVideo = true;
 SaveDebug = 0;
 deleteIfErr = false;
 SaveCheckPoints = 1;
-LoadCheckPoints = 10;
+LoadCheckPoints = 50;
 saveCode = true;
 profile = false;
 
@@ -30,8 +30,12 @@ patchSize = 150;
 edgeQ = 2;
 edgeK = 5;
 geoOnly = false;
-stop_frame = 35;
-
+stop_frame = 100;
+useGMM = true % True for GMM, False for KDE
+Kbg = 2; % Only relevant when useGMM=true
+Kfg = 3; % Only relevant when useGMM=true
+useLocalGL = true;
+BG_est_refresh = 10;
 * mitosisParams
 	enable = false;
 	mitosisDataName = 'Jose';

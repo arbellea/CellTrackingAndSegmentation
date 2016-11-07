@@ -68,17 +68,18 @@ else
     DEBUG = [];
 end
 try
-    PBG = Tracking.dens_BG(round(I)+1);
+    pGrayGlobal = alpha*Tracking.dens_cells./(alpha*(Tracking.dens_cells)+(1-alpha)*Tracking.dens_BG);
+    PBG = Tracking.dens_BG(round(I)+1);    
     P_Cell = Tracking.dens_cells(round(I)+1);
    %figure(8); plot(Tracking.dens_x,1-Tracking.dens_cells./(Tracking.dens_cells+Tracking.dens_BG)); pause(0.1);
    % alpha = (sum(Tracking.L(:)>0)./numel(Tracking.L))
-    nBG = alpha*P_Cell./(alpha*(P_Cell)+(1-alpha)*PBG);
+    nBG = pGrayGlobal(round(I)+1);
     
     PBG_prev = Tracking.dens_BG(round(I_prev)+1);
     P_Cell_prev = Tracking.dens_cells(round(I_prev)+1);
     
     
-    nBG_prev = alpha*P_Cell_prev./(alpha*(P_Cell_prev)+(1-alpha)*PBG_prev);
+    nBG_prev = pGrayGlobal(round(I_prev)+1);
     %Mask = ones(size(nBG));
     %s =size(nBG);
     %Mask(1:floor(s(1)/8),:)=0;
@@ -126,6 +127,8 @@ try
     
     if isfield(enKalmans,'dens_cells')
         pGrayLocal = arrayfun(@(x) alpha*x.dens_cells./((1-alpha)*x.dens_BG+alpha*x.dens_cells),enKalmans,'UniformOutput',false);
+        emptyGrayLocal = cellfun(@isempty,pGrayLocal);
+        [pGrayLocal{emptyGrayLocal}] = deal(pGrayGlobal);
         localGray = true;
     end
     

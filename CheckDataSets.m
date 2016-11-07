@@ -43,12 +43,13 @@ resPath = fullfile(HOME,'Outputs','Results_LahavLab-Jose3_20X_s102_July10_CheckP
 %resPath = fullfile(HOME,'Outputs','Results_LahavLab-Jose3_20X_s102_July12_CheckPoints','Results'); Name = 's102-Regularized';
 %resPath = fullfile(HOME,'Outputs','Results_LahavLab-Jose3_20X_s102_July17_CheckPoints','Results'); Name = 's102-Regularized';
 resPath = fullfile(HOME,'Outputs','Results_LahavLab-Jose3_20X_s102_July20_CheckPoints','Results'); Name = 's102-Regularized';
+resPath = fullfile(HOME,'Outputs','Results_LahavLab-Jose3_20X_s102_Nov_2_CheckPoints','Results'); Name = 's102-Regularized-local';
 %resPath = fullfile(HOME,'Outputs','Results_LahavLab-Jose3_20X_s102_July24_CheckPoints','Results'); Name = 's102-Regularized';
 
 resExt = '*.TIF';
 resExp = 'Seg_M20150416_w2CFP_s102_t(\d+).TIF';
 
-CheckWeizmanIlastik(cellData,LinkData,segData,data_path,extention,expr,resPath,csvPath,Name)
+
 
 CheckJose(txtfilePath,segData,data_path,extention,expr,resPath,resExt,resExp,Name);
 %% s103
